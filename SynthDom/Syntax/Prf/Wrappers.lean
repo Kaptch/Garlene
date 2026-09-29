@@ -46,6 +46,42 @@ theorem simplify_eq {Γ0 : OCTX.{i}} {Γs : CTX.{i}} {P1 P2 : EXPR.{i}}
   . rw [<-(EQ P1)]
     assumption
 
+theorem wk_delay_one_equiv : REN.equiv (wk_delay 0 0) REN.id :=
+  (equiv_global_shift_zero_id.global_lift).trans equiv_id_global_lift
+
+theorem PROVES.unbox {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P : EXPR.{i}}
+    (H : PROVES Γ Ψ (.lift (.delay P))) : PROVES ([] :: Γ) ([] :: Ψ) P := by
+  have hpos : 0 < Γ.length := typing_stack_len (PROVES.typed H)
+  have hP : TYPED ([] :: Γ) P TYPE.prop := by
+    obtain ⟨_, hd⟩ := TYPED.lift_inversion (PROVES.typed H)
+    obtain ⟨τ', heq, hb⟩ := TYPED.delay_inversion hd
+    obtain rfl : τ' = TYPE.prop := by injection heq.symm
+    exact hb
+  have h1 : PROVES ([] :: Γ) ([] :: Ψ) (.adv 1 (.delay P)) :=
+    PROVES.later_elim 1 Nat.zero_lt_one H
+  have hadv : TYPED ([] :: Γ) (.adv 1 (.delay P)) TYPE.prop :=
+    TYPED.adv Nat.zero_lt_one (TYPED.delay hpos hP)
+  have heq : EQ ([] :: Γ) TYPE.prop (.adv 1 (.delay P)) P := by
+    have h := EQ.beta_delay (Γ := [] :: Γ) 1 Nat.zero_lt_one (by simp; omega) hP
+    erw [weaken_eq_self wk_delay_one_equiv P] at h
+    exact h
+  exact simplify_eq hadv hP
+    (PROVES.eq_def heq (Hlen := by simp only [List.length_cons, PROVES.len H])) h1
+
+theorem PROVES.later_mono {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P Q : EXPR.{i}}
+    (Hpos : 0 < Γ.length := by prf_side)
+    (H1 : PROVES Γ Ψ (.lift (.delay P))) (H2 : PROVES ([] :: Γ) ([P] :: Ψ) Q) :
+    PROVES Γ Ψ (.lift (.delay Q)) := by
+  have hP : TYPED ([] :: Γ) P TYPE.prop := PROVES.typed (PROVES.unbox H1)
+  exact PROVES.lift_intro (Hpos := Hpos)
+    (PROVES.impl_elim (PROVES.impl_intro hP H2) (PROVES.unbox H1))
+
+theorem PROVES.later_and {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P Q : EXPR.{i}}
+    (H1 : PROVES Γ Ψ (.lift (.delay P))) (H2 : PROVES Γ Ψ (.lift (.delay Q))) :
+    PROVES Γ Ψ (.lift (.delay (.and P Q))) :=
+  PROVES.lift_intro (Hpos := typing_stack_len (PROVES.typed H1))
+    (PROVES.and_intro (PROVES.unbox H1) (PROVES.unbox H2))
+
 theorem simplify_prop {Γ : CTX.{i}} {P1 P2 : EXPR.{i}} :
     EQ Γ TYPE.prop P1 P2 → PROVES Γ Ψ P1 → PROVES Γ Ψ P2 := by
   intro Heq Hp
@@ -197,6 +233,22 @@ theorem GOAL_lift_intro (HΓ : 0 < Γ.length) : GOAL ([] :: PΓ) ([] :: PΨ) ([]
     intros H
     let ⟨H⟩ := H
     exact ⟨PROVES.lift_intro (Hpos := HΓ) H⟩
+
+theorem GOAL_later_elim (n : Nat) (Hn : 0 < n) :
+    GOAL (PΓ.drop n) (PΨ.drop n) (Γ.drop n) (Ψ.drop n) (.lift P) →
+    GOAL PΓ PΨ Γ Ψ (.adv n P) :=
+  by
+    intros H
+    let ⟨H⟩ := H
+    exact ⟨PROVES.later_elim n Hn H⟩
+
+theorem GOAL_unbox :
+    GOAL PΓ PΨ Γ Ψ (.lift (.delay P)) →
+    GOAL ([] :: PΓ) ([] :: PΨ) ([] :: Γ) ([] :: Ψ) P :=
+  by
+    intros H
+    let ⟨H⟩ := H
+    exact ⟨PROVES.unbox H⟩
 
 theorem GOAL_later_mono (HΓ : 0 < Γ.length) (nm : Name) :
     GOAL PΓ PΨ Γ Ψ (.lift (.delay P)) →

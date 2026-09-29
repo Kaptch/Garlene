@@ -253,9 +253,9 @@ inductive PROVES : CTX.{i} → PCTX.{i} → PROPOSITION.{i} → Prop where
 | forall_intro' : PROVES ((τ :: Γ) :: Γs) (intro_wrap Ψ) Φ → PROVES (Γ :: Γs) Ψ (.forall' τ Φ)
 | forall_elim' τ Φ e : TYPED ((τ :: Γ) :: Γs) Φ TYPE.prop → PROVES (Γ :: Γs) Ψ (.forall' τ Φ) → TYPED (Γ :: Γs) e τ → PROVES (Γ :: Γs) Ψ (binds (single_subst (List.map List.length (Γ :: Γs)) e) Φ)
 | lift_intro : (Hpos : 0 < Γ.length := by prf_side) → PROVES ([] :: Γ) ([] :: Ψ) Φ → PROVES Γ Ψ (.lift (.delay Φ))
-| later_mono : (Hpos : 0 < Γ.length := by prf_side) → PROVES Γ Ψ (.lift (.delay P)) → PROVES ([] :: Γ) ([P] :: Ψ) Q → PROVES Γ Ψ (.lift (.delay Q))
-
-| later_and : PROVES Γ Ψ (.lift (.delay P)) → PROVES Γ Ψ (.lift (.delay Q)) → PROVES Γ Ψ (.lift (.delay (.and P Q)))
+| later_elim {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P : PROPOSITION.{i}} (n : Nat) :
+    (Hn : 0 < n := by prf_side) →
+    PROVES (Γ.drop n) (Ψ.drop n) (.lift P) → PROVES Γ Ψ (.adv n P)
 
 | later_or : PROVES Γ Ψ (.lift (.delay (.or P Q))) → PROVES Γ Ψ (.or (.lift (.delay P)) (.lift (.delay Q)))
 | loeb_ind : PROVES Γ ((.lift (.delay (weaken Φ (REN.global_shift 1 REN.id))) :: Ψs) :: Φs) Φ → PROVES Γ (Ψs :: Φs) Φ
@@ -307,13 +307,6 @@ inductive PROVES : CTX.{i} → PCTX.{i} → PROPOSITION.{i} → Prop where
 @[simp] theorem intro_wrap_length (Ψ : PCTX) : (intro_wrap Ψ).length = Ψ.length := by
   cases Ψ <;> simp [intro_wrap]
 
-theorem PROVES.len (H : PROVES Γ Ψ Φ) : Γ.length = Ψ.length := by
-  induction H with
-  | forall_intro' h IH =>
-      simp only [intro_wrap_length, List.length_cons] at IH ⊢; omega
-  | forall_intro_points A Φ HΦ Hlen Hfam IH => exact Hlen
-  | _ => simp_all
-
 theorem PROVES.typed (H : PROVES Γ Ψ Φ) : TYPED Γ Φ TYPE.prop := by
   induction H with
   | asm n m Hn Hm Htyped Hlen => exact Htyped
@@ -330,15 +323,7 @@ theorem PROVES.typed (H : PROVES Γ Ψ Φ) : TYPED Γ Φ TYPE.prop := by
   | forall_elim' τ Φ e HΦ Hforall He IH =>
       exact subst_typing HΦ (TSSUBST.single_subst He)
   | lift_intro Hpos _ IH => exact TYPED.lift (TYPED.delay Hpos IH)
-  | later_mono Hpos _ _ _ IH2 => exact TYPED.lift (TYPED.delay Hpos IH2)
-  | later_and _ _ IH1 IH2 =>
-      obtain ⟨_, hd1⟩ := TYPED.lift_inversion IH1
-      obtain ⟨_, hd2⟩ := TYPED.lift_inversion IH2
-      cases hd1 with
-      | delay hpos hbody1 =>
-        cases hd2 with
-        | delay _ hbody2 =>
-          exact TYPED.lift (TYPED.delay hpos (TYPED.and hbody1 hbody2))
+  | later_elim n Hn _ IH => exact TYPED.adv Hn (TYPED.lift_inversion IH).2
   | later_or _ IH =>
       obtain ⟨_, hd⟩ := TYPED.lift_inversion IH
       cases hd with
@@ -374,5 +359,15 @@ theorem PROVES.typed (H : PROVES Γ Ψ Φ) : TYPED Γ Φ TYPE.prop := by
       injection hτ1 with _ e12; injection hτ2 with _ e22
       exact TYPED.eq (e12 ▸ hb) (e22 ▸ hb')
   | inl_inr_disj H IH => exact TYPED.false (typing_stack_len IH)
+
+theorem PROVES.len (H : PROVES Γ Ψ Φ) : Γ.length = Ψ.length := by
+  induction H with
+  | forall_intro' h IH =>
+      simp only [intro_wrap_length, List.length_cons] at IH ⊢; omega
+  | forall_intro_points A Φ HΦ Hlen Hfam IH => exact Hlen
+  | later_elim n Hn H IH =>
+      have h := typing_stack_len (PROVES.typed H)
+      simp only [List.length_drop] at IH h; omega
+  | _ => simp_all
 
 end prf

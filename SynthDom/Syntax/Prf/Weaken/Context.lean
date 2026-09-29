@@ -38,6 +38,36 @@ theorem pctx_ins_getElem?_ne {Ψ : PCTX.{i}} {n k : Nat} (hnk : n ≠ k) (m : Na
   | none => rfl
   | some fr => simp [if_neg (Ne.symm hnk)]
 
+theorem pctx_ins_drop_ge {Ψ : PCTX.{i}} {k n : Nat} (hkn : n ≤ k) (m : Nat) (P : EXPR.{i}) :
+    (pctx_ins Ψ k m P).drop n = pctx_ins (Ψ.drop n) (k - n) m P := by
+  induction n generalizing Ψ k with
+  | zero => simp
+  | succ n' IH =>
+    cases Ψ with
+    | nil => simp
+    | cons a as =>
+      cases k with
+      | zero => omega
+      | succ k' =>
+        simp only [pctx_ins_succ, List.drop_succ_cons]
+        rw [IH (by omega)]
+        congr 1
+        omega
+
+theorem pctx_ins_drop_lt {Ψ : PCTX.{i}} {k n : Nat} (hkn : k < n) (m : Nat) (P : EXPR.{i}) :
+    (pctx_ins Ψ k m P).drop n = Ψ.drop n := by
+  induction n generalizing Ψ k with
+  | zero => omega
+  | succ n' IH =>
+    cases Ψ with
+    | nil => simp
+    | cons a as =>
+      cases k with
+      | zero => simp only [pctx_ins_zero, List.drop_succ_cons]
+      | succ k' =>
+        simp only [pctx_ins_succ, List.drop_succ_cons]
+        exact IH (by omega)
+
 theorem pctx_ins_zero_intro_wrap (Ψ : PCTX.{i}) (m : Nat) (P : EXPR.{i}) :
     pctx_ins (intro_wrap Ψ) 0 m (weaken P octx_wk) = intro_wrap (pctx_ins Ψ 0 m P) := by
   cases Ψ with
@@ -127,13 +157,16 @@ theorem PROVES.assum_insert_at {Γ : CTX.{i}} {Ψ : PCTX.{i}} {Φ : EXPR.{i}}
     have h := IH (k + 1) m Pin
     simp only [pctx_ins_succ] at h
     exact PROVES.lift_intro (Hpos := Hpos) h
-  | @later_mono Γ Ψf P Q Hpos H1 H2 IH1 IH2 =>
+  | @later_elim Γ Ψf P n Hn H IH =>
     intro k m Pin
-    have h1 := IH1 k m Pin
-    have h2 := IH2 (k + 1) m Pin
-    simp only [pctx_ins_succ] at h2
-    exact PROVES.later_mono (Hpos := Hpos) h1 h2
-  | later_and _ _ IH1 IH2 => intro k m Pin; exact PROVES.later_and (IH1 k m Pin) (IH2 k m Pin)
+    by_cases hk : k < n
+    · have heq : (pctx_ins Ψf k m Pin).drop n = Ψf.drop n := pctx_ins_drop_lt hk m Pin
+      refine PROVES.later_elim n Hn ?_
+      rw [heq]; exact H
+    · have heq : (pctx_ins Ψf k m Pin).drop n = pctx_ins (Ψf.drop n) (k - n) m Pin :=
+        pctx_ins_drop_ge (by omega) m Pin
+      refine PROVES.later_elim n Hn ?_
+      rw [heq]; exact IH (k - n) m Pin
   | later_or _ IH => intro k m Pin; exact PROVES.later_or (IH k m Pin)
   | @loeb_ind Γ Φ Ψs Φs _ IH =>
     intro k m Pin
@@ -256,10 +289,20 @@ theorem PROVES.ctx_pad {Γ : CTX.{i}} {Ψ : PCTX.{i}} {Φ : EXPR.{i}} (H : PROVE
     rwa [binds_single_subst_pad HΦ] at h
   | lift_intro Hpos _ IH =>
     intro Δ Ψ' hΔ; exact PROVES.lift_intro (Hpos := by simp; omega) (IH Δ Ψ' hΔ)
-  | later_mono Hpos _ _ IH1 IH2 =>
+  | @later_elim Γ0 Ψ P n Hn H IH =>
     intro Δ Ψ' hΔ
-    exact PROVES.later_mono (Hpos := by simp; omega) (IH1 Δ Ψ' hΔ) (IH2 Δ Ψ' hΔ)
-  | later_and _ _ IH1 IH2 => intro Δ Ψ' hΔ; exact PROVES.later_and (IH1 Δ Ψ' hΔ) (IH2 Δ Ψ' hΔ)
+    have hΓ : n < Γ0.length := by
+      have := typing_stack_len (PROVES.typed H)
+      simp only [List.length_drop] at this; omega
+    have hΨ : n < Ψ.length := by
+      have hl := H.len
+      simp only [List.length_drop] at hl; omega
+    have hdropΓ : List.drop n (Γ0 ++ Δ) = List.drop n Γ0 ++ Δ :=
+      List.drop_append_of_le_length (Nat.le_of_lt hΓ)
+    have hdropΨ : List.drop n (Ψ ++ Ψ') = List.drop n Ψ ++ Ψ' :=
+      List.drop_append_of_le_length (Nat.le_of_lt hΨ)
+    refine PROVES.later_elim n Hn ?_
+    rw [hdropΓ, hdropΨ]; exact IH Δ Ψ' hΔ
   | later_or _ IH => intro Δ Ψ' hΔ; exact PROVES.later_or (IH Δ Ψ' hΔ)
   | loeb_ind _ IH => intro Δ Ψ' hΔ; exact PROVES.loeb_ind (IH Δ Ψ' hΔ)
   | eq_def HEQ Hlen =>

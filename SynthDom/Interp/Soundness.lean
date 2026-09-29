@@ -1,6 +1,7 @@
 module
 
 public import SynthDom.Interp.Interp
+public import SynthDom.Interp.Frames
 public import SynthDom.Syntax.Prf.Weaken
 
 @[expose] public section
@@ -22,11 +23,25 @@ section soundness
       weaken Φ (REN.global_shift 0 REN.id) = Φ :=
     weaken_eq_self equiv_global_shift_zero_id Φ
 
+  def hyp_interp {Γ : CTX.{i}} (d : Nat) (Φ : EXPR.{i}) : Part (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ) :=
+    (expr_interp (Γ.drop d) Φ TYPE.prop).map (earlier_prop d)
+
+  @[simp]
+  lemma hyp_interp_zero {Γ : CTX.{i}} (Φ : EXPR.{i}) :
+      hyp_interp (Γ := Γ) 0 Φ = expr_interp Γ Φ TYPE.prop := by
+    show (expr_interp Γ Φ TYPE.prop).map (fun P => earlier_prop 0 P) = _
+    exact Part.map_id' (fun _ => earlier_prop_zero _) _
+
+  lemma hyp_interp_succ {Γ0 : OCTX.{i}} {Γs : CTX.{i}} (d : Nat) (Φ : EXPR.{i}) :
+      hyp_interp (Γ := Γ0 :: Γs) (d + 1) Φ = (hyp_interp (Γ := Γs) d Φ).map tick_prop := by
+    simp only [hyp_interp, Part.map_map]
+    rfl
+
   def interp_poctx_at {Γ : CTX.{i}} (d : Nat) (Ψ : POCTX.{i}) : Part (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)) :=
     match Ψ with
     | .nil => pure []
     | .cons Φ Ψs => do
-      let Φ' ← expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop
+      let Φ' ← hyp_interp d Φ
       let Ψs' ← interp_poctx_at d Ψs
       pure (Φ' :: Ψs')
 
@@ -534,10 +549,10 @@ section soundness
       · rw [← he3]; exact ih3_result
       · exact IH1 ((P_interp :: Ψ') :: Ψs') Φ_interp
           (by simp [interp_pctx, interp_pctx_at, interp_poctx_at,
-            weaken_global_shift_zero_id, hp, he1, he2]) HΦ
+            hyp_interp_zero, hp, he1, he2]) HΦ
       · exact IH2 ((Q_interp :: Ψ') :: Ψs') Φ_interp
           (by simp [interp_pctx, interp_pctx_at, interp_poctx_at,
-            weaken_global_shift_zero_id, hq, he1, he2]) HΦ
+            hyp_interp_zero, hq, he1, he2]) HΦ
 
   lemma soundness_impl_intro {Γ : CTX.{i}} {Ψ : POCTX.{i}} {Ψs : PCTX.{i}} {Φ₁ Φ₂ : PROPOSITION.{i}}
     (HΦ1 : TYPED Γ Φ₁ TYPE.prop) (H : PROVES Γ ((Φ₁ :: Ψ) :: Ψs) Φ₂)
@@ -562,7 +577,7 @@ section soundness
     simp only [interp_impl]
     apply intro_impl
     apply IH ((Φ₁_interp :: Ψ') :: Ψs') Φ₂_interp
-    · simp [interp_pctx, interp_pctx_at, interp_poctx_at, weaken_global_shift_zero_id, h_phi1, he1, he2]
+    · simp [interp_pctx, interp_pctx_at, interp_poctx_at, hyp_interp_zero, h_phi1, he1, he2]
     · exact h_phi2
 
   lemma soundness_forall_elim' {Γ : CTX.{i}} {Ψ : PCTX.{i}} {τ : TYPE.{i}} {Φ : PROPOSITION.{i}} {e : EXPR.{i}}
@@ -706,21 +721,21 @@ section soundness
       {Ψ_interp : List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)}
       (H : interp_poctx_at d (Φ :: Ψs) = Pure.pure Ψ_interp)
       : ∃ (Φ' : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ) (Ψs' : List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)),
-        expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop = Pure.pure Φ' ∧
+        hyp_interp d Φ = Pure.pure Φ' ∧
         interp_poctx_at d Ψs = Pure.pure Ψs' ∧
         Ψ_interp = Φ' :: Ψs' := by
     simp only [interp_poctx_at] at H
     obtain ⟨Φ', hΦ', Ψs', hΨs', heq⟩ : ∃ Φ' Ψs',
-        expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop = Part.some Φ' ∧
+        hyp_interp d Φ = Part.some Φ' ∧
         interp_poctx_at d Ψs = Part.some Ψs' ∧
         Ψ_interp = Φ' :: Ψs' := by
-      rw [show (do let Φ' ← expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop
+      rw [show (do let Φ' ← hyp_interp d Φ
                    let Ψs' ← interp_poctx_at d Ψs; pure (Φ' :: Ψs'))
-               = (expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop).bind
+               = (hyp_interp d Φ).bind
                    (fun Φ' => (interp_poctx_at d Ψs).bind (fun Ψs' => Part.some (Φ' :: Ψs'))) by rfl] at H
       simp only [Part.bind_some_eq_map, Part.pure_eq_some] at H
       revert H
-      cases (expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop) using Part.induction_on with
+      cases (hyp_interp d Φ) using Part.induction_on with
       | hnone => simp
       | hsome a =>
         simp only [Part.bind_some, Part.some_inj, exists_and_left, exists_eq_left']
@@ -730,54 +745,72 @@ section soundness
           simp only [Part.map_some, Part.some_inj, exists_eq_left']; intro H; symm; exact H
     exact ⟨Φ', hΦ', Ψs', hΨs', heq⟩
 
-  lemma id_comp_equiv (σ : REN) : REN.equiv (REN.comp REN.id σ) σ := by
-    refine ⟨fun n m => ?_, fun n => ?_⟩
-    · simp only [weaken_var']
-    · cases n with
-      | zero => simp [offset_ren]
-      | succ n => simp only [offset_ren]
+  lemma interp_poctx_at_succ_map {Γ0 : OCTX.{i}} {Γs : CTX.{i}} (d : Nat) (Ψf : POCTX.{i}) :
+      interp_poctx_at (d + 1) Ψf (Γ := Γ0 :: Γs)
+        = (interp_poctx_at d Ψf (Γ := Γs)).map (List.map tick_prop) := by
+    induction Ψf with
+    | nil => simp [interp_poctx_at]
+    | cons Φ rest IH =>
+      simp only [interp_poctx_at, hyp_interp_succ, IH]
+      apply Part.ext; intro v
+      simp only [bind, Part.mem_bind_iff, Part.mem_map_iff, Part.pure_eq_some, Part.mem_some_iff]
+      constructor
+      · rintro ⟨_, ⟨a, ha, rfl⟩, _, ⟨b, hb, rfl⟩, rfl⟩
+        exact ⟨a :: b, ⟨a, ha, b, hb, rfl⟩, rfl⟩
+      · rintro ⟨_, ⟨a, ha, b, hb, rfl⟩, rfl⟩
+        exact ⟨_, ⟨a, ha, rfl⟩, _, ⟨b, hb, rfl⟩, rfl⟩
 
-  lemma comp_global_shift_succ_octx_wk_equiv (d : Nat) :
-      REN.equiv (REN.comp (REN.global_shift (d + 1) REN.id) octx_wk)
-                (REN.global_shift (d + 1) REN.id) := by
-    have h1 := asm_nat (d + 1) octx_wk
-    simp only [octx_wk] at h1
+  lemma interp_pctx_at_succ_map {Γ0 : OCTX.{i}} {Γs : CTX.{i}} (d : Nat) (Ψ : PCTX.{i}) :
+      interp_pctx_at (d + 1) Ψ (Γ := Γ0 :: Γs)
+        = (interp_pctx_at d Ψ (Γ := Γs)).map (List.map (List.map tick_prop)) := by
+    induction Ψ generalizing d with
+    | nil => simp [interp_pctx_at]
+    | cons Ψf rest IH =>
+      simp only [interp_pctx_at, interp_poctx_at_succ_map, IH]
+      apply Part.ext; intro v
+      simp only [bind, Part.mem_bind_iff, Part.mem_map_iff, Part.pure_eq_some, Part.mem_some_iff]
+      constructor
+      · rintro ⟨_, ⟨a, ha, rfl⟩, _, ⟨b, hb, rfl⟩, rfl⟩
+        exact ⟨a :: b, ⟨a, ha, b, hb, rfl⟩, rfl⟩
+      · rintro ⟨_, ⟨a, ha, b, hb, rfl⟩, rfl⟩
+        exact ⟨_, ⟨a, ha, rfl⟩, _, ⟨b, hb, rfl⟩, rfl⟩
 
-    rw [show cut_ren (REN.local_weaken REN.id) (d + 1) = REN.id by simp [cut_ren],
-      show offset_ren (REN.local_weaken REN.id) (d + 1) = d + 1 by simp [offset_ren]] at h1
-    exact REN.equiv.trans h1 (id_comp_equiv _)
-
-  lemma expr_octx_wk_tail {Γ : OCTX.{i}} {Γs : CTX.{i}} {τ : TYPE.{i}} (d : Nat) {Φ : EXPR.{i}}
-      (Hσ : TYPED_REN octx_wk ((τ :: Γ) :: Γs) (Γ :: Γs))
-      (HΦ : TYPED ((Γ :: Γs).drop (d + 1)) Φ TYPE.prop) :
-      expr_interp ((τ :: Γ) :: Γs) (weaken Φ (REN.global_shift (d + 1) REN.id)) TYPE.prop
-      = (expr_interp (Γ :: Γs) (weaken Φ (REN.global_shift (d + 1) REN.id)) TYPE.prop).map
-          (fun b => ⟦Hσ⟧ᵣ ≫ b) := by
-    have key := eq_weak (Γ :: Γs) (weaken Φ (REN.global_shift (d + 1) REN.id)) TYPE.prop Hσ
-      (weaken_typing HΦ (global_shift_id_typing (Γ :: Γs) (d + 1)
-        (by have h := typing_stack_len HΦ; rw [List.length_drop] at h; omega)))
-    rw [weaken_comp, weaken_congr Φ (comp_global_shift_succ_octx_wk_equiv d)] at key
-    exact key
+  lemma octx_wk_interp {Γ : OCTX.{i}} {Γs : CTX.{i}} {τ : TYPE.{i}}
+      (Hσ : TYPED_REN octx_wk ((τ :: Γ) :: Γs) (Γ :: Γs)) :
+      ⟦Hσ⟧ᵣ = interp_ren_local_weaken (τ := τ) interp_ren_id := by
+    simp only [octx_wk] at Hσ
+    cases Hσ with
+    | local_weaken _ Hσ' =>
+      cases Hσ' with
+      | id _ => rfl
 
   lemma interp_poctx_at_octx_wk_tail {Γ : OCTX.{i}} {Γs : CTX.{i}} {τ : TYPE.{i}} (d : Nat)
       (Hσ : TYPED_REN octx_wk ((τ :: Γ) :: Γs) (Γ :: Γs))
       (Ψf : POCTX.{i}) (v : List (⟦Γ :: Γs⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))
-      (Hwt : ∀ (m : Nat) (Φ : EXPR.{i}), Ψf[m]? = some Φ → TYPED ((Γ :: Γs).drop (d + 1)) Φ TYPE.prop)
       (Hv : interp_poctx_at (d + 1) Ψf = pure v) :
       interp_poctx_at (d + 1) Ψf (Γ := (τ :: Γ) :: Γs)
         = pure (v.map (fun b => ⟦Hσ⟧ᵣ ≫ b)) := by
-    induction Ψf generalizing v with
+    rw [interp_poctx_at_succ_map] at Hv ⊢
+    obtain ⟨w, hw, rfl⟩ := (Part.mem_map_iff _).mp (Part.eq_some_iff.mp Hv)
+    rw [Part.eq_some_iff.mpr hw, Part.map_some, List.map_map, octx_wk_interp Hσ]
+    rfl
+
+  lemma interp_pctx_at_octx_wk_tail {Γ : OCTX.{i}} {Γs : CTX.{i}} {τ : TYPE.{i}}
+      (Hσ : TYPED_REN octx_wk ((τ :: Γ) :: Γs) (Γ :: Γs))
+      (d : Nat) (Ψ : PCTX.{i}) (V : List (List (⟦Γ :: Γs⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
+      (HV : interp_pctx_at (d + 1) Ψ = pure V) :
+      interp_pctx_at (d + 1) Ψ (Γ := (τ :: Γ) :: Γs)
+        = pure (V.map (fun frame => frame.map (fun b => ⟦Hσ⟧ᵣ ≫ b))) := by
+    induction Ψ generalizing d V with
     | nil =>
-      obtain rfl : v = [] := by simpa [interp_poctx_at] using Hv.symm
-      simp [interp_poctx_at]
-    | cons Φ rest IH =>
-      obtain ⟨Φ', rest', hΦ', hrest, heq⟩ := interp_poctx_at_cons_decomp Hv
-      have hΦadv : expr_interp ((τ :: Γ) :: Γs) (weaken Φ (REN.global_shift (d + 1) REN.id)) TYPE.prop
-          = pure (⟦Hσ⟧ᵣ ≫ Φ') := by
-        rw [expr_octx_wk_tail d Hσ (Hwt 0 Φ (by simp)), hΦ']; rfl
-      have hrestadv := IH rest' (fun m Φ'' h => Hwt (m + 1) Φ'' (by simpa using h)) hrest
-      rw [heq]
-      simp only [interp_poctx_at, hΦadv, hrestadv, List.map_cons, pure_bind]
+      obtain rfl : V = [] := by simpa [interp_pctx_at] using HV.symm
+      simp [interp_pctx_at]
+    | cons Ψg Ψgs IH =>
+      obtain ⟨g', gs', hg', hgs, geq⟩ := interp_pctx_at_cons_decomp HV
+      have hgadv := interp_poctx_at_octx_wk_tail d Hσ Ψg g' hg'
+      have hgsadv := IH (d + 1) gs' hgs
+      rw [geq]
+      simp only [interp_pctx_at, hgadv, hgsadv, List.map_cons, pure_bind]
 
   lemma interp_poctx_at_octx_wk_zero {Γ : OCTX.{i}} {Γs : CTX.{i}} {τ : TYPE.{i}}
       (Hσ : TYPED_REN octx_wk ((τ :: Γ) :: Γs) (Γ :: Γs))
@@ -792,13 +825,9 @@ section soundness
       simp [interp_poctx_at]
     | cons Φ rest IH =>
       obtain ⟨Φ', rest', hΦ', hrest, heq⟩ := interp_poctx_at_cons_decomp Hv
-      have hΦadv : expr_interp ((τ :: Γ) :: Γs)
-          (weaken (weaken Φ octx_wk) (REN.global_shift 0 REN.id)) TYPE.prop
-          = pure (⟦Hσ⟧ᵣ ≫ Φ') := by
-        rw [weaken_global_shift_zero_id]
-        rw [eq_weak (Γ :: Γs) Φ TYPE.prop Hσ (Hwt 0 Φ (by simp))]
-        rw [show expr_interp (Γ :: Γs) (weaken Φ (REN.global_shift 0 REN.id)) TYPE.prop
-              = expr_interp (Γ :: Γs) Φ TYPE.prop by rw [weaken_global_shift_zero_id]] at hΦ'
+      have hΦadv : hyp_interp (Γ := (τ :: Γ) :: Γs) 0 (weaken Φ octx_wk) = pure (⟦Hσ⟧ᵣ ≫ Φ') := by
+        rw [hyp_interp_zero, eq_weak (Γ :: Γs) Φ TYPE.prop Hσ (Hwt 0 Φ (by simp))]
+        rw [hyp_interp_zero] at hΦ'
         rw [hΦ']; rfl
       have hrestadv := IH rest' (fun m Φ'' h => Hwt (m + 1) Φ'' (by simpa using h)) hrest
       rw [heq]
@@ -824,42 +853,8 @@ section soundness
             have := Hwt 0 m Ψf Φ (by simp) h
             simpa using this) hf'
       have hrestadv : interp_pctx_at 1 Ψrest (Γ := (τ :: Γ) :: Γs)
-          = pure (rest'.map (fun frame => frame.map (fun b => ⟦Hσ⟧ᵣ ≫ b))) := by
-        clear heq hf' hf0
-        suffices H : ∀ (d : Nat) (Ψtail : PCTX.{i}) (W : List (List (⟦Γ :: Γs⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))),
-            (∀ (n m : Nat) (Ψ' : POCTX.{i}) (Φ : EXPR.{i}),
-              Ψtail[n]? = some Ψ' → Ψ'[m]? = some Φ → TYPED ((Γ :: Γs).drop (d + 1 + n)) Φ TYPE.prop) →
-            interp_pctx_at (d + 1) Ψtail = pure W →
-            interp_pctx_at (d + 1) Ψtail (Γ := (τ :: Γ) :: Γs)
-              = pure (W.map (fun frame => frame.map (fun b => ⟦Hσ⟧ᵣ ≫ b))) by
-          exact H 0 Ψrest rest'
-            (fun n m Ψ' Φ hn hm => by
-              have := Hwt (n + 1) m Ψ' Φ (by simpa using hn) hm
-              simpa [Nat.add_comm, Nat.add_left_comm] using this)
-            hrest
-        intro d Ψtail
-        induction Ψtail generalizing d with
-        | nil =>
-          intro W _ HW
-          obtain rfl : W = [] := by simpa [interp_pctx_at] using HW.symm
-          simp [interp_pctx_at]
-        | cons Ψg Ψgs IH =>
-          intro W Hwt' HW
-          obtain ⟨g', gs', hg', hgs, geq⟩ := interp_pctx_at_cons_decomp HW
-          have hgadv : interp_poctx_at (d + 1) Ψg (Γ := (τ :: Γ) :: Γs)
-              = pure (g'.map (fun b => ⟦Hσ⟧ᵣ ≫ b)) :=
-            interp_poctx_at_octx_wk_tail d Hσ Ψg g'
-              (fun m Φ h => by
-                have := Hwt' 0 m Ψg Φ (by simp) h
-                simpa using this) hg'
-          have hgsadv := IH (d + 1) gs'
-            (fun n m Ψ' Φ hn hm => by
-              have := Hwt' (n + 1) m Ψ' Φ (by simpa using hn) hm
-              have he : d + 1 + (n + 1) = d + 1 + 1 + n := by omega
-              rwa [he] at this)
-            hgs
-          rw [geq]
-          simp only [interp_pctx_at, hgadv, hgsadv, List.map_cons, pure_bind]
+          = pure (rest'.map (fun frame => frame.map (fun b => ⟦Hσ⟧ᵣ ≫ b))) :=
+        interp_pctx_at_octx_wk_tail Hσ 0 Ψrest rest' hrest
       rw [heq]
       simp only [intro_wrap, intro_wrap', interp_pctx, interp_pctx_at, hf0, hrestadv,
         List.map_cons, pure_bind]
@@ -976,55 +971,64 @@ section soundness
     rw [weaken_global_shift_succ Φ d]
     exact key
 
-  lemma interp_poctx_at_advance {Γ : CTX.{i}} (d : Nat) (Hd : d < Γ.length)
-      (Ψf : POCTX.{i}) (v : List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))
-      (Hwt : ∀ (m : Nat) (Φ : EXPR.{i}), Ψf[m]? = some Φ → TYPED (Γ.drop d) Φ TYPE.prop)
+  lemma interp_poctx_at_advance {Γ0 : OCTX.{i}} {Γs : CTX.{i}} (d : Nat)
+      (Ψf : POCTX.{i}) (v : List (⟦Γs⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))
       (Hv : interp_poctx_at d Ψf = pure v) :
-      interp_poctx_at (d + 1) Ψf (Γ := [] :: Γ)
-        = pure (v.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b)) := by
-    induction Ψf generalizing v with
-    | nil =>
-      obtain rfl : v = [] := by simpa [interp_poctx_at] using Hv.symm
-      simp [interp_poctx_at]
-    | cons Φ rest IH =>
-      obtain ⟨Φ', rest', hΦ', hrest, heq⟩ := interp_poctx_at_cons_decomp Hv
-      have hΦadv : expr_interp ([] :: Γ) (weaken Φ (REN.global_shift (d + 1) REN.id)) TYPE.prop
-          = pure (((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ Φ') := by
-        rw [expr_advance Hd (Hwt 0 Φ (by simp)), hΦ']; rfl
-      have hrestadv := IH rest' (fun m Φ'' h => Hwt (m + 1) Φ'' (by simpa using h)) hrest
-      rw [heq]
-      simp only [interp_poctx_at, hΦadv, hrestadv]
-      exact (Part.bind_some _ _).trans (Part.bind_some _ _)
+      interp_poctx_at (d + 1) Ψf (Γ := Γ0 :: Γs) = pure (v.map tick_prop) := by
+    rw [interp_poctx_at_succ_map, Hv, Part.pure_eq_some, Part.map_some]; rfl
 
-  lemma interp_pctx_at_advance {Γ : CTX.{i}} (d : Nat)
-      (Ψ : PCTX.{i}) (V : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
-      (Hlen : d + Ψ.length ≤ Γ.length)
-      (Hwt : ∀ (n m : Nat) (Ψ' : POCTX.{i}) (Φ : EXPR.{i}),
-        Ψ[n]? = some Ψ' → Ψ'[m]? = some Φ → TYPED (Γ.drop (d + n)) Φ TYPE.prop)
+  lemma interp_pctx_at_advance {Γ0 : OCTX.{i}} {Γs : CTX.{i}} (d : Nat)
+      (Ψ : PCTX.{i}) (V : List (List (⟦Γs⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
       (HV : interp_pctx_at d Ψ = pure V) :
-      interp_pctx_at (d + 1) Ψ (Γ := [] :: Γ)
-        = pure (V.map (fun frame =>
-            frame.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b))) := by
-    induction Ψ generalizing d V with
-    | nil =>
-      obtain rfl : V = [] := by simpa [interp_pctx_at] using HV.symm
-      simp [interp_pctx_at]
-    | cons Ψf Ψrest IH =>
-      obtain ⟨f', rest', hf', hrest, heq⟩ := interp_pctx_at_cons_decomp HV
-      have hfadv : interp_poctx_at (d + 1) Ψf (Γ := [] :: Γ)
-          = pure (f'.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b)) :=
-        interp_poctx_at_advance d (by simp only [List.length_cons] at Hlen; omega) Ψf f'
-          (fun m Φ h => by simpa using Hwt 0 m Ψf Φ (by simp) h) hf'
-      have hrestadv := IH (d + 1) rest'
-        (by simp only [List.length_cons] at Hlen; omega)
-        (fun n m Ψ' Φ hn hm => by
-          have h := Hwt (n + 1) m Ψ' Φ (by simpa using hn) hm
-          have he : d + (n + 1) = (d + 1) + n := by omega
-          rwa [he] at h)
-        hrest
-      rw [heq]
-      simp only [interp_pctx_at, hfadv, hrestadv, List.map_cons]
-      exact (Part.bind_some _ _).trans (Part.bind_some _ _)
+      interp_pctx_at (d + 1) Ψ (Γ := Γ0 :: Γs)
+        = pure (V.map (fun frame => frame.map tick_prop)) := by
+    rw [interp_pctx_at_succ_map, HV, Part.pure_eq_some, Part.map_some]; rfl
+
+  lemma interp_pctx_at_drop_gen {Γ : CTX.{i}} (b n : Nat) (Ψ : PCTX.{i})
+      (V : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
+      (HV : interp_pctx_at b Ψ (Γ := Γ) = pure V) :
+      interp_pctx_at (b + n) (Ψ.drop n) (Γ := Γ) = pure (V.drop n) := by
+    induction n generalizing b Ψ V with
+    | zero => simpa using HV
+    | succ n' IH =>
+      cases Ψ with
+      | nil =>
+        obtain rfl : V = [] := by simpa [interp_pctx_at] using HV.symm
+        simp [interp_pctx_at]
+      | cons Ψf Ψrest =>
+        obtain ⟨f', rest', hf', hrest, heq⟩ := interp_pctx_at_cons_decomp HV
+        subst heq
+        simp only [List.drop]
+        have h := IH (b + 1) Ψrest rest' hrest
+        rwa [show b + (n' + 1) = (b + 1) + n' from by omega]
+
+  lemma interp_pctx_at_drop {Γ : CTX.{i}} (n : Nat) (Ψ : PCTX.{i})
+      (V : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
+      (HV : interp_pctx_at 0 Ψ (Γ := Γ) = pure V) :
+      interp_pctx_at n (Ψ.drop n) (Γ := Γ) = pure (V.drop n) := by
+    have := interp_pctx_at_drop_gen 0 n Ψ V HV
+    simpa using this
+
+  lemma interp_pctx_at_drop_shift : ∀ (n : Nat) {Γ : CTX.{i}} (d : Nat) (Ψ' : PCTX.{i}),
+      n ≤ Γ.length →
+      interp_pctx_at (d + n) Ψ' (Γ := Γ)
+        = (interp_pctx_at d Ψ' (Γ := Γ.drop n)).map (List.map (List.map (earlier_prop n)))
+    | 0, Γ, d, Ψ', _ => by
+      show interp_pctx_at d Ψ' (Γ := Γ) = _
+      rw [earlier_prop_zero_fun]
+      erw [List.map_id_fun, List.map_id_fun]
+      exact (Part.map_id' (fun _ => rfl) _).symm
+    | n + 1, [], _, _, h => by simp at h
+    | n + 1, x :: xs, d, Ψ', h => by
+      have IH := interp_pctx_at_drop_shift n (Γ := xs) d Ψ' (by simp at h; omega)
+      show interp_pctx_at ((d + n) + 1) Ψ' (Γ := x :: xs) = _
+      rw [interp_pctx_at_succ_map, IH, Part.map_map]
+      congr 1
+      funext V
+      simp only [Function.comp_apply, List.map_map]
+      congr 1
+      funext fr
+      exact map_earlier_prop_succ n fr
 
   lemma poctx_map_postcomp {Γ : CTX.{i}} {Δ : CTX.{i}} (g : ⟦Δ⟧ₛ ⟶ ⟦Γ⟧ₛ)
       (Ψ : List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)) :
@@ -1066,185 +1070,14 @@ section soundness
         ext; simp [Φ_ext]
       simp [expr_interp, h_ext_eq] at HΦ
       exact HΦ.symm]
-    refine entails_trans _ _ _ (later_intro (pctx Ψ_interp)) (later_mono ?_)
-    rw [← Category.assoc]
-    have key := interp_pctx_at_advance 0 Ψ Ψ_interp
-      (by have := PROVES.len H; simp only [List.length_cons] at this; omega)
-      (fun n m Ψ' Φ' hn hm => by simpa using Hwf n m Ψ' Φ' hn hm) HΨ
-    simp only [Nat.zero_add] at key
+    have key := interp_pctx_at_advance (Γ0 := []) 0 Ψ Ψ_interp HΨ
     have hadv : interp_pctx ([] :: Ψ) (Γ := [] :: Γ)
-        = pure ([] :: Ψ_interp.map (fun frame =>
-            frame.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b))) := by
+        = pure ([] :: Ψ_interp.map (fun frame => frame.map tick_prop)) := by
       simp only [interp_pctx, interp_pctx_at, interp_poctx_at, key, pure_bind]
     have hih := IH (ctx_typed_lift Hwf) _ Φ_ext hadv (by ext; simp [Φ_ext])
     simp only [pctx, poctx] at hih
-    erw [← pctx_map_postcomp (Γ := Γ) (Δ := [] :: Γ)
-        ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) Ψ_interp]
-    exact entails_trans _ _ _ (conj_intro true_intro (entails_refl _)) hih
-
-  lemma expr_drop_shift {Γ : CTX.{i}} {n j : Nat} (hn' : n < Γ.length)
-      (Hd : n + j < Γ.length) {Φ : EXPR.{i}}
-      (HΦ : TYPED (Γ.drop (n + j)) Φ TYPE.prop) :
-      expr_interp Γ (weaken Φ (REN.global_shift (n + j) REN.id)) TYPE.prop
-      = (expr_interp (Γ.drop n) (weaken Φ (REN.global_shift j REN.id)) TYPE.prop).map
-          (fun b => ⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ b) := by
-    have HΦin : TYPED (Γ.drop n) (weaken Φ (REN.global_shift j REN.id)) TYPE.prop := by
-      apply weaken_typing _ (global_shift_id_typing (Γ.drop n) j (by rw [List.length_drop]; omega))
-      rw [show (Γ.drop n).drop j = Γ.drop (n + j) by rw [List.drop_drop, Nat.add_comm]]; exact HΦ
-    have key := eq_weak (Γ.drop n) (weaken Φ (REN.global_shift j REN.id)) TYPE.prop
-        (global_shift_id_typing Γ n hn') HΦin
-    rw [weaken_comp, weaken_congr Φ (global_shift_comp_equiv j n)] at key
-    exact key
-
-  lemma interp_poctx_at_drop_shift {Γ : CTX.{i}} (n j : Nat) (hn' : n < Γ.length)
-      (Ψf : POCTX.{i}) (v : List (⟦Γ.drop n⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))
-      (Hwt : ∀ (m : Nat) (Φ : EXPR.{i}), Ψf[m]? = some Φ → TYPED ((Γ.drop n).drop j) Φ TYPE.prop)
-      (Hdj : n + j < Γ.length)
-      (Hv : interp_poctx_at j Ψf (Γ := Γ.drop n) = pure v) :
-      interp_poctx_at (n + j) Ψf (Γ := Γ)
-        = pure (v.map (fun b => ⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ b)) := by
-    induction Ψf generalizing v with
-    | nil =>
-      obtain rfl : v = [] := by simpa [interp_poctx_at] using Hv.symm
-      simp [interp_poctx_at]
-    | cons Φ rest IH =>
-      obtain ⟨Φ', rest', hΦ', hrest, heq⟩ := interp_poctx_at_cons_decomp Hv
-      have hΦty : TYPED (Γ.drop (n + j)) Φ TYPE.prop := by
-        have := Hwt 0 Φ (by simp)
-        rw [List.drop_drop] at this; exact this
-      have hΦadv : expr_interp Γ (weaken Φ (REN.global_shift (n + j) REN.id)) TYPE.prop
-          = pure (⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ Φ') := by
-        rw [expr_drop_shift hn' Hdj hΦty, hΦ']; rfl
-      have hrestadv := IH rest' (fun m Φ'' h => Hwt (m + 1) Φ'' (by simpa using h)) hrest
-      rw [heq]
-      simp only [interp_poctx_at, hΦadv, hrestadv, List.map_cons, pure_bind]
-
-  lemma interp_pctx_at_drop_shift {Γ : CTX.{i}} (n : Nat) (hn' : n < Γ.length)
-      (Ψ : PCTX.{i}) (V : List (List (⟦Γ.drop n⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
-      (Hlen : n + Ψ.length ≤ Γ.length)
-      (Hwt : ctx_typed (Γ.drop n) Ψ)
-      (HV : interp_pctx_at 0 Ψ (Γ := Γ.drop n) = pure V) :
-      interp_pctx_at n Ψ (Γ := Γ)
-        = pure (V.map (fun frame =>
-            frame.map (fun b => ⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ b))) := by
-    suffices H : ∀ (d : Nat) (Ψtail : PCTX.{i}) (W : List (List (⟦Γ.drop n⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))),
-        n + d + Ψtail.length ≤ Γ.length →
-        (∀ (k m : Nat) (Ψ' : POCTX.{i}) (Φ : EXPR.{i}),
-          Ψtail[k]? = some Ψ' → Ψ'[m]? = some Φ →
-            TYPED ((Γ.drop n).drop (d + k)) Φ TYPE.prop) →
-        interp_pctx_at d Ψtail (Γ := Γ.drop n) = pure W →
-        interp_pctx_at (n + d) Ψtail (Γ := Γ)
-          = pure (W.map (fun frame =>
-              frame.map (fun b => ⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ b))) by
-      have := H 0 Ψ V (by simpa using Hlen)
-        (fun k m Ψ' Φ hk hm => by simpa using Hwt k m Ψ' Φ hk hm) HV
-      simpa using this
-    intro d Ψtail
-    induction Ψtail generalizing d with
-    | nil =>
-      intro W _ _ HW
-      obtain rfl : W = [] := by simpa [interp_pctx_at] using HW.symm
-      simp [interp_pctx_at]
-    | cons Ψf Ψrest IH =>
-      intro W Hlen' Hwt' HW
-      obtain ⟨f', rest', hf', hrest, heq⟩ := interp_pctx_at_cons_decomp HW
-      have hfadv : interp_poctx_at (n + d) Ψf (Γ := Γ)
-          = pure (f'.map (fun b => ⟦global_shift_id_typing Γ n hn'⟧ᵣ ≫ b)) := by
-        by_cases hf0 : Ψf = []
-        · subst hf0
-          obtain rfl : f' = [] := by simpa [interp_poctx_at] using hf'.symm
-          simp [interp_poctx_at]
-        · exact interp_poctx_at_drop_shift n d hn' Ψf f'
-            (fun m Φ h => by
-              have := Hwt' 0 m (Ψf) Φ (by simp) h
-              rwa [Nat.add_zero] at this)
-            (by simp only [List.length_cons] at Hlen'
-                have : 0 < Ψf.length := List.length_pos_of_ne_nil hf0
-                omega) hf'
-      have hrestadv := IH (d + 1) rest'
-        (by simp only [List.length_cons] at Hlen'; omega)
-        (fun k m Ψ' Φ hk hm => by
-          have := Hwt' (k + 1) m Ψ' Φ hk hm
-          have he : d + (k + 1) = d + 1 + k := by omega
-          rwa [he] at this)
-        hrest
-      rw [show n + (d + 1) = (n + d) + 1 from by omega] at hrestadv
-      rw [heq]
-      simp only [interp_pctx_at, hfadv, hrestadv, List.map_cons, pure_bind]
-
-  lemma interp_pctx_at_drop_gen {Γ : CTX.{i}} (b n : Nat) (Ψ : PCTX.{i})
-      (V : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
-      (HV : interp_pctx_at b Ψ (Γ := Γ) = pure V) :
-      interp_pctx_at (b + n) (Ψ.drop n) (Γ := Γ) = pure (V.drop n) := by
-    induction n generalizing b Ψ V with
-    | zero => simpa using HV
-    | succ n' IH =>
-      cases Ψ with
-      | nil =>
-        obtain rfl : V = [] := by simpa [interp_pctx_at] using HV.symm
-        simp [interp_pctx_at]
-      | cons Ψf Ψrest =>
-        obtain ⟨f', rest', hf', hrest, heq⟩ := interp_pctx_at_cons_decomp HV
-        subst heq
-        simp only [List.drop]
-        have h := IH (b + 1) Ψrest rest' hrest
-        rwa [show b + (n' + 1) = (b + 1) + n' from by omega]
-
-  lemma interp_pctx_at_drop {Γ : CTX.{i}} (n : Nat) (Ψ : PCTX.{i})
-      (V : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)))
-      (HV : interp_pctx_at 0 Ψ (Γ := Γ) = pure V) :
-      interp_pctx_at n (Ψ.drop n) (Γ := Γ) = pure (V.drop n) := by
-    have := interp_pctx_at_drop_gen 0 n Ψ V HV
-    simpa using this
-
-  lemma interp_poctx_at_dom {Γ : CTX.{i}} (d : Nat) (Ψf : POCTX.{i})
-      (Hlen : d < Γ.length)
-      (Hwt : ∀ (m : Nat) (Φ : EXPR.{i}), Ψf[m]? = some Φ → TYPED (Γ.drop d) Φ TYPE.prop) :
-      (interp_poctx_at d Ψf (Γ := Γ)).Dom := by
-    induction Ψf with
-    | nil => simp [interp_poctx_at]
-    | cons Φ rest IH =>
-      have hΦw : (expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop).Dom :=
-        expr_interp_correct (weaken_typing (Hwt 0 Φ (by simp)) (global_shift_id_typing Γ d Hlen))
-      have hrest := IH (fun m Φ' h => Hwt (m + 1) Φ' (by simpa using h))
-      rw [show interp_poctx_at d (Φ :: rest) (Γ := Γ)
-            = (expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop).bind
-                (fun Φ' => (interp_poctx_at d rest).bind (fun rest' => pure (Φ' :: rest'))) from rfl,
-          Part.Dom.bind hΦw, Part.Dom.bind hrest]
-      trivial
-
-  lemma interp_pctx_at_dom {Γ : CTX.{i}} (d : Nat) (Ψ : PCTX.{i})
-      (Hlen : d + Ψ.length ≤ Γ.length)
-      (Hwt : ∀ (k m : Nat) (Ψ' : POCTX.{i}) (Φ : EXPR.{i}),
-        Ψ[k]? = some Ψ' → Ψ'[m]? = some Φ → TYPED (Γ.drop (d + k)) Φ TYPE.prop) :
-      (interp_pctx_at d Ψ (Γ := Γ)).Dom := by
-    induction Ψ generalizing d with
-    | nil => simp [interp_pctx_at]
-    | cons Ψf Ψrest IH =>
-      have hfdom : (interp_poctx_at d Ψf (Γ := Γ)).Dom := by
-        by_cases hf0 : Ψf = []
-        · subst hf0; simp [interp_poctx_at]
-        · exact interp_poctx_at_dom d Ψf
-            (by simp only [List.length_cons] at Hlen
-                have : 0 < Ψf.length := List.length_pos_of_ne_nil hf0
-                omega)
-            (fun m Φ h => by simpa using Hwt 0 m Ψf Φ (by simp) h)
-      have hrestdom := IH (d + 1) (by simp only [List.length_cons] at Hlen; omega)
-          (fun k m Ψ' Φ hk hm => by
-            have := Hwt (k + 1) m Ψ' Φ hk hm
-            have he : d + (k + 1) = d + 1 + k := by omega
-            rwa [he] at this)
-      rw [show interp_pctx_at d (Ψf :: Ψrest) (Γ := Γ)
-            = (interp_poctx_at d Ψf).bind
-                (fun Ψf' => (interp_pctx_at (d + 1) Ψrest).bind (fun rest' => pure (Ψf' :: rest')))
-            from rfl,
-          Part.Dom.bind hfdom, Part.Dom.bind hrestdom]
-      trivial
-
-  lemma n_force_succ_eq_cut_force (m : Nat) (Hn : 0 < m + 1) :
-      n_force (i := m + 1) = n_force_cut Hn ≫ force := by
-    rw [n_force_cut_nm_force_cut Hn, nm_force_cut_decomp (show (1 : Nat) ≤ m + 1 by omega)]
-    congr 1
+    refine entails_trans _ _ _ (later_intro' (pctx Ψ_interp)) (later_mono ?_)
+    exact entails_trans _ _ _ (conj_intro true_intro (pctx_map_tick_l Ψ_interp)) hih
 
   lemma lift_delay_prop_typed {Γ : CTX.{i}} {P : PROPOSITION.{i}}
       (h : TYPED Γ (.lift (.delay P)) TYPE.prop) : TYPED ([] :: Γ) P TYPE.prop := by
@@ -1282,7 +1115,7 @@ section soundness
           (((.lift (.delay (weaken Φ (REN.global_shift 1 REN.id)))) :: Ψs) :: Φs)
         = pure (((interp_lift (interp_delay
             (((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ Φ_interp))) :: Ψs') :: Φs') := by
-      simp only [interp_pctx, interp_pctx_at, interp_poctx_at, weaken_global_shift_zero_id, h_lift_eq,
+      simp only [interp_pctx, interp_pctx_at, interp_poctx_at, hyp_interp_zero, h_lift_eq,
         he1, he2, pure_bind]
     rw [← Category.assoc]
     exact IH (ctx_typed_cons0 Hwf (by
@@ -1357,8 +1190,8 @@ section soundness
   lemma interp_poctx_at_getElem {Γ : CTX.{i}} {d m : Nat} :
       ∀ {Ψn : POCTX.{i}} {Ψn_interp : List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)} {Φ : EXPR.{i}},
       interp_poctx_at d Ψn = pure Ψn_interp → Ψn[m]? = some Φ →
-      ∃ P, Ψn_interp[m]? = some P ∧
-        expr_interp Γ (weaken Φ (REN.global_shift d REN.id)) TYPE.prop = pure P := by
+      ∃ P, Ψn_interp[m]? = some (earlier_prop d P) ∧
+        expr_interp (Γ.drop d) Φ TYPE.prop = pure P := by
     induction m with
     | zero =>
       intro Ψn Ψn_interp Φ HΨ Hm
@@ -1367,7 +1200,9 @@ section soundness
       | cons Φ0 rest =>
         simp only [List.getElem?_cons_zero, Option.some.injEq] at Hm; subst Hm
         obtain ⟨Φ', rest', hΦ', hrest, heq⟩ := interp_poctx_at_cons_decomp HΨ
-        exact ⟨Φ', by rw [heq]; simp, hΦ'⟩
+        simp only [hyp_interp] at hΦ'
+        obtain ⟨P, hP, rfl⟩ := (Part.mem_map_iff _).mp (Part.eq_some_iff.mp hΦ')
+        exact ⟨P, by rw [heq]; simp, Part.eq_some_iff.mpr hP⟩
     | succ m' IH =>
       intro Ψn Ψn_interp Φ HΨ Hm
       cases Ψn with
@@ -1381,7 +1216,8 @@ section soundness
   lemma soundness_asm {Γ : CTX.{i}} {Ψ : PCTX.{i}} {Φ : PROPOSITION.{i}}
     {n m : Nat} {Ψ' : POCTX.{i}}
     (Hn : Ψ[n]? = some Ψ') (Hm : Ψ'[m]? = some Φ)
-    (_Htyped : TYPED Γ (weaken Φ (REN.global_shift n REN.id)) TYPE.prop)
+    (Hlen : Γ.length = Ψ.length)
+    (Hwf : ctx_typed Γ Ψ)
     (Ψ_interp : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φ_interp : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)
     (HΨ : interp_pctx Ψ = pure Ψ_interp)
     (HΦ : expr_interp Γ (weaken Φ (REN.global_shift n REN.id)) TYPE.prop = pure Φ_interp)
@@ -1389,87 +1225,57 @@ section soundness
     obtain ⟨Ψn_interp, hgetn, hintn⟩ := interp_pctx_at_getElem HΨ Hn
     simp only [Nat.zero_add] at hintn
     obtain ⟨P, hgetm, hexprm⟩ := interp_poctx_at_getElem hintn Hm
-    rw [show Φ_interp = P from Part.some_injective
-      (show (pure Φ_interp : Part (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)) = pure P by rw [← HΦ]; exact hexprm)]
-    exact entails_trans _ _ _ (pctx_entails_getElem hgetn) (poctx_entails_getElem hgetm)
+    have hn : n < Γ.length := by
+      rw [Hlen]; exact (List.getElem?_eq_some_iff.mp Hn).1
+    have hΦty : TYPED (Γ.drop n) Φ TYPE.prop := Hwf n m Ψ' Φ Hn Hm
+    have hΦ : Φ_interp = ⟦global_shift_id_typing Γ n hn⟧ᵣ ≫ P := by
+      have key := eq_weak (Γ.drop n) Φ TYPE.prop (global_shift_id_typing Γ n hn) hΦty
+      rw [hexprm, Part.pure_eq_some, Part.map_some] at key
+      exact Part.some_injective (HΦ.symm.trans key)
+    rw [hΦ, global_shift_id_interp]
+    simp only [Category.assoc]
+    exact entails_trans _ _ _ (pctx_entails_getElem hgetn)
+      (entails_trans _ _ _ (poctx_entails_getElem hgetm) (earlier_prop_entails_nforce n hn P))
 
-  lemma soundness_later_mono {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P Q : PROPOSITION.{i}}
-    (_Hlen : 0 < Γ.length)
-    (H1 : PROVES Γ Ψ (.lift (.delay P)))
-    (H2 : PROVES ([] :: Γ) ([P] :: Ψ) Q)
-    (IH1 : ctx_typed Γ Ψ →
-      ∀ (Ψi : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φi : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ),
-      interp_pctx Ψ = pure Ψi → expr_interp Γ (.lift (.delay P)) TYPE.prop = pure Φi → pctx Ψi ⊢ᵢ Φi)
-    (IH2 : ctx_typed ([] :: Γ) ([P] :: Ψ) →
-      ∀ (Ψi : List (List (⟦[] :: Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φi : ⟦[] :: Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ),
-      interp_pctx ([P] :: Ψ) = pure Ψi → expr_interp ([] :: Γ) Q TYPE.prop = pure Φi → pctx Ψi ⊢ᵢ Φi)
+  lemma soundness_later_elim {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P : EXPR.{i}} {n : Nat}
+    (Hn : 0 < n)
+    (H : PROVES (Γ.drop n) (Ψ.drop n) (.lift P))
+    (IH : ctx_typed (Γ.drop n) (Ψ.drop n) →
+      ∀ (Ψi : List (List (⟦Γ.drop n⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φi : ⟦Γ.drop n⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ),
+      interp_pctx (Ψ.drop n) = pure Ψi →
+      expr_interp (Γ.drop n) (.lift P) TYPE.prop = pure Φi → pctx Ψi ⊢ᵢ Φi)
     (Hwf : ctx_typed Γ Ψ)
     (Ψ_interp : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φ_interp : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)
     (HΨ : interp_pctx Ψ = pure Ψ_interp)
-    (HΦ : expr_interp Γ (.lift (.delay Q)) TYPE.prop = pure Φ_interp)
+    (HΦ : expr_interp Γ (.adv n P) TYPE.prop = pure Φ_interp)
     : pctx Ψ_interp ⊢ᵢ Φ_interp := by
-    have hPty : TYPED ([] :: Γ) P TYPE.prop := lift_delay_prop_typed (PROVES.typed H1)
-    set Q_ext := (expr_interp ([] :: Γ) Q TYPE.prop).get (expr_interp_correct (PROVES.typed H2)) with hQ_def
-    have hQ_eq : expr_interp ([] :: Γ) Q TYPE.prop = pure Q_ext := by ext; simp [hQ_def]
-    set P_ext := (expr_interp ([] :: Γ) P TYPE.prop).get (expr_interp_correct hPty) with hP_def
-    have hP_eq : expr_interp ([] :: Γ) P TYPE.prop = pure P_ext := by ext; simp [hP_def]
-    rw [show Φ_interp = interp_lift (interp_delay Q_ext) by
-      simp only [expr_interp, hQ_eq, pure_bind] at HΦ
-      exact (Part.some_injective HΦ).symm]
-    have key := interp_pctx_at_advance 0 Ψ Ψ_interp
-      (by have := PROVES.len H1; omega)
-      (fun n m Ψ' Φ' hn hm => by simpa using Hwf n m Ψ' Φ' hn hm) HΨ
-    simp only [Nat.zero_add] at key
-    have hadv : interp_pctx ([P] :: Ψ) (Γ := [] :: Γ)
-        = pure ([P_ext] :: Ψ_interp.map (fun frame =>
-            frame.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b))) := by
-      simp only [interp_pctx, interp_pctx_at, interp_poctx_at,
-        weaken_global_shift_zero_id, Nat.zero_add, hP_eq, key, pure_bind]
-    have hih2 := IH2 (ctx_typed_cons0 (ctx_typed_lift Hwf) (by simpa using hPty)) _ Q_ext hadv hQ_eq
-    simp only [pctx, poctx] at hih2
-    have hpm : (((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ pctx Ψ_interp)
-        = pctx (Γ := [] :: Γ) (Ψ_interp.map (fun frame =>
-            frame.map (fun b => ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ b))) :=
-      (pctx_map_postcomp (Δ := [] :: Γ)
-        ((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) Ψ_interp).symm
-    rw [← hpm] at hih2
-    have hmid : pctx Ψ_interp ⊢ᵢ
-        interp_lift (interp_delay (P_ext ∧ᵢ
-          (((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ pctx Ψ_interp))) := by
-      refine entails_trans _ _ _
-        (conj_intro (IH1 Hwf Ψ_interp (interp_lift (interp_delay P_ext)) HΨ (by simp [expr_interp, hP_eq]))
-          (later_intro (pctx Ψ_interp))) ?_
-      rw [← Category.assoc]
-      exact later_conj P_ext (((λ_ (earlier.obj ⟦Γ⟧ₛ)).hom ≫ force.app ⟦Γ⟧ₛ) ≫ pctx Ψ_interp)
-    exact entails_trans _ _ _ hmid (later_mono
-      (entails_trans _ _ _ (conj_intro (conj_intro conj_elim_l true_intro) conj_elim_r) hih2))
-
-  lemma soundness_later_and {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P Q : PROPOSITION.{i}}
-    (H1 : PROVES Γ Ψ (.lift (.delay P)))
-    (H2 : PROVES Γ Ψ (.lift (.delay Q)))
-    (IH1 : ∀ (Ψi : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φi : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ),
-      interp_pctx Ψ = pure Ψi → expr_interp Γ (.lift (.delay P)) TYPE.prop = pure Φi → pctx Ψi ⊢ᵢ Φi)
-    (IH2 : ∀ (Ψi : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φi : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ),
-      interp_pctx Ψ = pure Ψi → expr_interp Γ (.lift (.delay Q)) TYPE.prop = pure Φi → pctx Ψi ⊢ᵢ Φi)
-    (Ψ_interp : List (List (⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ))) (Φ_interp : ⟦Γ⟧ₛ ⟶ ⟦TYPE.prop⟧ₜ)
-    (HΨ : interp_pctx Ψ = pure Ψ_interp)
-    (HΦ : expr_interp Γ (.lift (.delay (.and P Q))) TYPE.prop = pure Φ_interp)
-    : pctx Ψ_interp ⊢ᵢ Φ_interp := by
-    set P_ext := (expr_interp ([] :: Γ) P TYPE.prop).get
-      (expr_interp_correct (lift_delay_prop_typed (PROVES.typed H1))) with hP_def
-    have hP_eq : expr_interp ([] :: Γ) P TYPE.prop = pure P_ext := by ext; simp [hP_def]
-    set Q_ext := (expr_interp ([] :: Γ) Q TYPE.prop).get
-      (expr_interp_correct (lift_delay_prop_typed (PROVES.typed H2))) with hQ_def
-    have hQ_eq : expr_interp ([] :: Γ) Q TYPE.prop = pure Q_ext := by ext; simp [hQ_def]
-    rw [show Φ_interp = interp_lift (interp_delay (interp_and P_ext Q_ext)) by
-      rw [show expr_interp Γ (.lift (.delay (.and P Q))) TYPE.prop
-            = pure (interp_lift (interp_delay (interp_and P_ext Q_ext))) by
-          simp [expr_interp, hP_eq, hQ_eq]] at HΦ
-      exact (Part.some_injective HΦ).symm]
-    exact entails_trans _ _ _
-      (conj_intro (IH1 Ψ_interp _ HΨ (by simp [expr_interp, hP_eq]))
-        (IH2 Ψ_interp _ HΨ (by simp [expr_interp, hQ_eq])))
-      (later_conj P_ext Q_ext)
+    have hΓ : n < Γ.length := by
+      have := typing_stack_len (PROVES.typed H)
+      simp only [List.length_drop] at this; omega
+    have hPty : TYPED (Γ.drop n) P (TYPE.later TYPE.prop) :=
+      (TYPED.lift_inversion (PROVES.typed H)).2
+    set P_ext := (expr_interp (Γ.drop n) P (TYPE.later TYPE.prop)).get (expr_interp_correct hPty)
+      with hP_def
+    have hP_eq : expr_interp (Γ.drop n) P (TYPE.later TYPE.prop) = pure P_ext := by
+      ext; simp [hP_def]
+    have hΦ : Φ_interp = interp_adv n Hn (Γ := Γ) P_ext := by
+      have h : expr_interp Γ (.adv n P) TYPE.prop = pure (interp_adv n Hn (Γ := Γ) P_ext) := by
+        simp only [expr_interp]
+        rw [Part.assert_pos Hn, hP_eq]
+        exact Part.bind_some _ _
+      exact Part.some_injective (HΦ.symm.trans h)
+    have hdrop := interp_pctx_at_drop n Ψ Ψ_interp HΨ
+    have hshift := interp_pctx_at_drop_shift n 0 (Ψ.drop n) (Nat.le_of_lt hΓ)
+    simp only [Nat.zero_add] at hshift
+    rw [hshift] at hdrop
+    obtain ⟨W, hW, hWeq⟩ := (Part.mem_map_iff _).mp (Part.eq_some_iff.mp hdrop)
+    have hih := IH (ctx_typed_drop n Hwf) W (interp_lift P_ext) (Part.eq_some_iff.mpr hW)
+      (by simp [expr_interp, hP_eq])
+    rw [hΦ]
+    refine entails_trans _ _ _ (pctx_drop_entails n Ψ_interp) ?_
+    rw [← hWeq]
+    exact entails_trans _ _ _ (pctx_map_earlier_r n (Nat.le_of_lt hΓ) W)
+      (earlier_prop_later_elim n Hn hΓ hih)
 
   lemma soundness_later_or {Γ : CTX.{i}} {Ψ : PCTX.{i}} {P Q : PROPOSITION.{i}}
     (H : PROVES Γ Ψ (.lift (.delay (.or P Q))))
@@ -1528,7 +1334,7 @@ section soundness
         simpa only [intro_wrap] using interp_pctx_intro_wrap (Ψ :: Ψs) Hσ Ψ_interp Hwf HΨ)
     have hbranchI : interp_pctx ((Φ :: intro_wrap' Ψ) :: Ψs)
         = pure ((Φb :: WiH) :: WiT) := by
-      simp only [interp_pctx, interp_pctx_at, interp_poctx_at, weaken_global_shift_zero_id, h_body_eq]
+      simp only [interp_pctx, interp_pctx_at, interp_poctx_at, hyp_interp_zero, h_body_eq]
       rw [show interp_poctx_at 0 (intro_wrap' Ψ) = pure WiH from hWiH,
         show interp_pctx_at 1 Ψs = pure WiT from hWiT]
       simp [Part.bind_some]
@@ -1641,7 +1447,7 @@ section soundness
       have hbranchI : interp_pctx
           ((EXPR.eq (TYPE.sum A B) (weaken e octx_wk) inj :: intro_wrap' Ψ) :: Ψs)
           = pure ((interp_eq (⟦Hσ⟧ᵣ ≫ e_interp) inj_interp :: WiH) :: WiT) := by
-        simp only [interp_pctx, interp_pctx_at, interp_poctx_at, weaken_global_shift_zero_id, heqA_i]
+        simp only [interp_pctx, interp_pctx_at, interp_poctx_at, hyp_interp_zero, heqA_i]
         rw [show interp_poctx_at 0 (intro_wrap' Ψ) = pure WiH from hWiH,
           show interp_pctx_at 1 Ψs = pure WiT from hWiT]
         simp [Part.bind_some]
@@ -1835,8 +1641,8 @@ section soundness
       pctx Ψ_interp ⊢ᵢ Φ_interp := by
     intro Ψ_interp Φ_interp HΨ HΦ
     induction H with
-    | asm n m Hn Hm Htyped Hlen =>
-      exact soundness_asm Hn Hm Htyped Ψ_interp Φ_interp HΨ HΦ
+    | asm n m Hn Hm _ Hlen =>
+      exact soundness_asm Hn Hm Hlen Hwf Ψ_interp Φ_interp HΨ HΦ
     | true_intro Hlen Hlen' =>
       exact soundness_true_intro Hlen Ψ_interp Φ_interp HΨ HΦ
     | and_intro H1 H2 IH1 IH2 =>
@@ -1870,10 +1676,8 @@ section soundness
       exact soundness_exists_elim' HQty Hex IH1 IH2 Hwf Ψ_interp Φ_interp HΨ HΦ
     | lift_intro Hlen H IH =>
       exact soundness_lift_intro Hlen H IH Hwf Ψ_interp Φ_interp HΨ HΦ
-    | later_mono Hpos H1 H2 IH1 IH2 =>
-      exact soundness_later_mono Hpos H1 H2 IH1 IH2 Hwf Ψ_interp Φ_interp HΨ HΦ
-    | later_and H1 H2 IH1 IH2 =>
-      exact soundness_later_and H1 H2 (IH1 Hwf) (IH2 Hwf) Ψ_interp Φ_interp HΨ HΦ
+    | later_elim n Hn H IH =>
+      exact soundness_later_elim Hn H IH Hwf Ψ_interp Φ_interp HΨ HΦ
     | later_or H IH =>
       exact soundness_later_or H (IH Hwf) Ψ_interp Φ_interp HΨ HΦ
     | loeb_ind H IH =>

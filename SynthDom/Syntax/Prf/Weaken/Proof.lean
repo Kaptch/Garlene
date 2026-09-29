@@ -52,6 +52,17 @@ theorem weaken_pctx_cons (σ : REN) (Ψ0 : POCTX.{i}) (Ψs : PCTX.{i}) :
   congr 2
   rw [cut_cut, Nat.add_comm]
 
+theorem weaken_pctx_drop (σ : REN) (Ψ : PCTX.{i}) (n : Nat) :
+    (weaken_pctx σ Ψ).drop n = weaken_pctx (cut_ren σ n) (Ψ.drop n) := by
+  induction n generalizing σ Ψ with
+  | zero => simp
+  | succ n' IH =>
+    cases Ψ with
+    | nil => simp [weaken_pctx_nil]
+    | cons a as =>
+      rw [weaken_pctx_cons, List.drop_succ_cons, List.drop_succ_cons, IH (cut_ren σ 1)]
+      rw [cut_cut, Nat.add_comm 1 n']
+
 theorem weaken_pctx_getElem? (σ : REN) (Ψ : PCTX.{i}) (n : Nat) :
     (weaken_pctx σ Ψ)[n]? = (Ψ[n]?).map (fun Ψn => Ψn.map (fun p => weaken p (cut_ren σ n))) := by
   simp only [weaken_pctx, List.getElem?_mapIdx]
@@ -215,19 +226,20 @@ theorem PROVES.weaken {Γ : CTX.{i}} {Ψ : PCTX.{i}} {Φ : EXPR.{i}} (H : PROVES
     have h := IH Htp.global_lift (TYPED_REN.global_lift Hσ)
     rw [weaken_pctx_lift] at h
     exact PROVES.lift_intro (Hpos := ren_len' σ Hσ) h
-  | @later_mono Γ Ψ P Q Hpos H1 H2 IH1 IH2 =>
+  | @later_elim Γ Ψ P n Hn H IH =>
     intro Δ σ Htp Hσ
-    obtain ⟨Δ0, Δs, rfl⟩ := ren_dom_cons_shape Hσ
-    have h1 := IH1 Htp Hσ
-    have h2 := IH2 Htp.global_lift (TYPED_REN.global_lift Hσ)
-    rw [weaken_pctx_cons] at h2
-    simp only [List.map_cons, List.map_nil] at h2
-    rw [cut_global_lift_succ, cut_ren_zero] at h2
-    exact PROVES.later_mono (Hpos := by simp) h1 h2
-  | later_and _ _ IH1 IH2 =>
-    intro Δ σ Htp Hσ
-
-    exact PROVES.later_and (IH1 Htp Hσ) (IH2 Htp Hσ)
+    have hoff : offset_ren σ n = n := Htp n
+    have hΓ : n < Γ.length := by
+      have := typing_stack_len (PROVES.typed H)
+      simp only [List.length_drop] at this; omega
+    have Hτ : TYPED_REN (cut_ren σ n) (Δ.drop n) (Γ.drop n) := by
+      have h := cut_ren_typing σ Hσ n hΓ
+      rwa [hoff] at h
+    have h := IH (Htp.cut n) Hτ
+    rw [← weaken_pctx_drop] at h
+    show PROVES Δ _ (.adv (offset_ren σ n) (_root_.weaken P (cut_ren σ n)))
+    rw [hoff]
+    exact PROVES.later_elim n Hn h
   | later_or _ IH =>
     intro Δ σ Htp Hσ
     exact PROVES.later_or (IH Htp Hσ)

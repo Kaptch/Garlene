@@ -23,6 +23,7 @@ syntax "gapply " "(" term ")" (ppSpace colGt term_lang:arg)* : tactic
 syntax "glöb " ident : tactic
 syntax "gsimpl" : tactic
 syntax "gnext" : tactic
+syntax "gadv" : tactic
 syntax "gunfold " ident " at " ident : tactic
 syntax "gunfold " ident : tactic
 syntax "gembed" : tactic
