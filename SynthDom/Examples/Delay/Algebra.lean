@@ -10,19 +10,19 @@ open CategoryTheory
 
 gdef Delay.ext (A B : TYPE) : (▸ B → B) → (A → B) → [Delay A] → B :=
   fix e. λ s. λ f. λ d.
-    case ([Delay.PROJ A]ₛ d)
+    case ([Delay.unfold A]ₛ d)
       f
       (λ w. s (delay ((((adv 1 e) s) f) (adv 1 w))))
 
 gtheorem Delay.ret_mk (A : TYPE) :
-    ∀ a : A. (([Delay.ret A]ₛ a) = [Delay.MK A]ₛ (inl a)) := by
+    ∀ a : A. (([Delay.ret A]ₛ a) = [Delay.fold A]ₛ (inl a)) := by
   gintro a
   gunfold Delay.ret
   gsimpl
   grfl
 
 gtheorem Delay.step_mk (A : TYPE) :
-    ∀ w : ▸ [Delay A]. (([Delay.step A]ₛ w) = [Delay.MK A]ₛ (inr w)) := by
+    ∀ w : ▸ [Delay A]. (([Delay.step A]ₛ w) = [Delay.fold A]ₛ (inr w)) := by
   gintro w
   gunfold Delay.step
   gsimpl
@@ -36,7 +36,7 @@ gtheorem Delay.ext_ret (A B : TYPE) :
   gfix
   gunfold Delay.ret
   gsimpl
-  grewrite (Delay.PROJ_MK A)
+  grewrite (Delay.unfold_fold A)
   gsimpl
   grfl
 
@@ -49,7 +49,7 @@ gtheorem Delay.ext_step (A B : TYPE) :
   gfix
   gunfold Delay.step
   gsimpl
-  grewrite (Delay.PROJ_MK A)
+  grewrite (Delay.unfold_fold A)
   gsimpl
   grfl
 
@@ -61,18 +61,18 @@ gtheorem Delay.ext_unique (A B : TYPE) :
   gintro s f h Hret Hstep
   glöb IH
   gintro d
-  gcases ([Delay.PROJ A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
-  · gassert HMK of (([Delay.MK A]ₛ (inl v)) = d)
+  gcases ([Delay.unfold A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
+  · gassert HMK of (([Delay.fold A]ₛ (inl v)) = d)
     · grewrite ← hd
-      gapply (Delay.MK_PROJ A)
+      gapply (Delay.fold_unfold A)
     grewrite ← HMK
     grewrite ← (Delay.ret_mk A) v
     grewrite Hret v
     grewrite (Delay.ext_ret A B)
     grfl
-  · gassert HMK of (([Delay.MK A]ₛ (inr v)) = d)
+  · gassert HMK of (([Delay.fold A]ₛ (inr v)) = d)
     · grewrite ← hd
-      gapply (Delay.MK_PROJ A)
+      gapply (Delay.fold_unfold A)
     grewrite ← HMK
     grewrite ← (Delay.step_mk A) v
     grewrite Hstep v

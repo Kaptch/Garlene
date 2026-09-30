@@ -11,28 +11,28 @@ public import SynthDom.Examples.Utils.Extract
 namespace Lam
 
 gtheorem Dom.proj_thunk : ∀ w : ▸ Dom.
-    (([Dom.PROJ]ₛ ([Dom.thunk]ₛ w))
+    (([Dom.unfold]ₛ ([Dom.thunk]ₛ w))
       = (inr (inr (inl w)) : (Δ Nat ⊕ (Δ Unit ⊕ (▸ Dom ⊕ ▸ (Dom → Dom)))))) := by
   gintro w
   gunfold Dom.thunk
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   grfl
 
 gtheorem Dom.proj_lam : ∀ g : ▸ (Dom → Dom).
-    (([Dom.PROJ]ₛ ([Dom.lam]ₛ g))
+    (([Dom.unfold]ₛ ([Dom.lam]ₛ g))
       = (inr (inr (inr g)) : (Δ Nat ⊕ (Δ Unit ⊕ (▸ Dom ⊕ ▸ (Dom → Dom)))))) := by
   gintro g
   gunfold Dom.lam
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   grfl
 
 section wp
 
 gdef Dom.wp : Dom → (Dom → Ω) → Ω :=
   fix W. λ p. λ Φ.
-    case ([Dom.PROJ]ₛ p)
+    case ([Dom.unfold]ₛ p)
       (λ n. Φ p)
       (λ r. case r
         (λ u. ⊥)
@@ -42,16 +42,16 @@ gdef Dom.wp : Dom → (Dom → Ω) → Ω :=
 
 gtheorem Dom.eq_of_proj :
     ∀ p : Dom. ∀ x : (Δ Nat ⊕ (Δ Unit ⊕ (▸ Dom ⊕ ▸ (Dom → Dom)))).
-      ((([Dom.PROJ]ₛ p) = x) → (p = [Dom.MK]ₛ x)) := by
+      ((([Dom.unfold]ₛ p) = x) → (p = [Dom.fold]ₛ x)) := by
   gintro p x H
-  gapply (eq_trans' Dom) p ([Dom.MK]ₛ ([Dom.PROJ]ₛ p)) ([Dom.MK]ₛ x)
+  gapply (eq_trans' Dom) p ([Dom.fold]ₛ ([Dom.unfold]ₛ p)) ([Dom.fold]ₛ x)
   · gapply (eq_symm' Dom)
-    gapply (Dom.MK_PROJ)
+    gapply (Dom.fold_unfold)
   · gapply (app_cong_arg _ _)
     gexact H
 
 gtheorem Dom.thunk_mk : ∀ w : ▸ Dom.
-    (([Dom.thunk]ₛ w) = [Dom.MK]ₛ (inr (inr (inl w)))) := by
+    (([Dom.thunk]ₛ w) = [Dom.fold]ₛ (inr (inr (inl w)))) := by
   gintro w
   gunfold Dom.thunk
   gsimpl
@@ -77,44 +77,44 @@ gtheorem Dom.wp_thunk : ∀ w : ▸ Dom. ∀ Φ : (Dom → Ω).
   grfl
 
 gtheorem Dom.wp_mk_num : ∀ k : (Δ Nat). ∀ Φ : (Dom → Ω).
-    ((([Dom.wp]ₛ ([Dom.MK]ₛ (inl k))) Φ) = Φ ([Dom.MK]ₛ (inl k))) := by
+    ((([Dom.wp]ₛ ([Dom.fold]ₛ (inl k))) Φ) = Φ ([Dom.fold]ₛ (inl k))) := by
   gintro k Φ
   gunfold Dom.wp
   gfix
-  grewrite (Dom.PROJ_MK) (inl k)
+  grewrite (Dom.unfold_fold) (inl k)
   gsimpl
   grfl
 
 gtheorem Dom.wp_mk_error : ∀ u : (Δ Unit). ∀ Φ : (Dom → Ω).
-    ((([Dom.wp]ₛ ([Dom.MK]ₛ (inr (inl u)))) Φ) = ⊥) := by
+    ((([Dom.wp]ₛ ([Dom.fold]ₛ (inr (inl u)))) Φ) = ⊥) := by
   gintro u Φ
   gunfold Dom.wp
   gfix
-  grewrite (Dom.PROJ_MK) (inr (inl u))
+  grewrite (Dom.unfold_fold) (inr (inl u))
   gsimpl
   grfl
 
 gtheorem Dom.wp_mk_thunk : ∀ w : (▸ Dom). ∀ Φ : (Dom → Ω).
-    ((([Dom.wp]ₛ ([Dom.MK]ₛ (inr (inr (inl w))))) Φ)
+    ((([Dom.wp]ₛ ([Dom.fold]ₛ (inr (inr (inl w))))) Φ)
       = lift (delay ((([Dom.wp]ₛ (adv 1 w)) Φ)))) := by
   gintro w Φ
   gunfold Dom.wp
   gfix
-  grewrite (Dom.PROJ_MK) (inr (inr (inl w)))
+  grewrite (Dom.unfold_fold) (inr (inr (inl w)))
   gsimpl
   grfl
 
 gtheorem Dom.wp_mk_lam : ∀ g : (▸ (Dom → Dom)). ∀ Φ : (Dom → Ω).
-    ((([Dom.wp]ₛ ([Dom.MK]ₛ (inr (inr (inr g))))) Φ) = Φ ([Dom.MK]ₛ (inr (inr (inr g))))) := by
+    ((([Dom.wp]ₛ ([Dom.fold]ₛ (inr (inr (inr g))))) Φ) = Φ ([Dom.fold]ₛ (inr (inr (inr g))))) := by
   gintro g Φ
   gunfold Dom.wp
   gfix
-  grewrite (Dom.PROJ_MK) (inr (inr (inr g)))
+  grewrite (Dom.unfold_fold) (inr (inr (inr g)))
   gsimpl
   grfl
 
 gtheorem Dom.num_mk (k : Nat) :
-    (([Dom.num k]ₛ) = [Dom.MK]ₛ (inl (δ(k : Nat)))) := by
+    (([Dom.num k]ₛ) = [Dom.fold]ₛ (inl (δ(k : Nat)))) := by
   gunfold Dom.num
   grfl
 
@@ -141,8 +141,8 @@ gtheorem Dom.wp_mono : ∀ Φ : (Dom → Ω). ∀ Ψ : (Dom → Ω). ∀ p : Dom
       → ((([Dom.wp]ₛ p) Φ) → (([Dom.wp]ₛ p) Ψ))) := by
   glöb IH
   gintro Φ Ψ p Himp H
-  gcases ([Dom.PROJ]ₛ p) with (⟨k, hk⟩ | ⟨r, hr⟩)
-  · gassert hp of (p = [Dom.MK]ₛ (inl k))
+  gcases ([Dom.unfold]ₛ p) with (⟨k, hk⟩ | ⟨r, hr⟩)
+  · gassert hp of (p = [Dom.fold]ₛ (inl k))
     · gapply (Dom.eq_of_proj)
       gexact hk
     grewrite hp at H
@@ -151,7 +151,7 @@ gtheorem Dom.wp_mono : ∀ Φ : (Dom → Ω). ∀ Ψ : (Dom → Ω). ∀ p : Dom
     gapply Himp
     grewrite ← (Dom.wp_mk_num) k Φ
     gexact H
-  · gassert hp of (p = [Dom.MK]ₛ (inr r))
+  · gassert hp of (p = [Dom.fold]ₛ (inr r))
     · gapply (Dom.eq_of_proj)
       gexact hr
     gcases (r) with (⟨u, hu⟩ | ⟨r2, hr2⟩)
@@ -186,8 +186,8 @@ gtheorem Dom.wp_bind_apply : ∀ x : Dom. ∀ Φ : (Dom → Ω). ∀ Ψ : (Dom �
       → ((([Dom.wp]ₛ p) Φ) → (([Dom.wp]ₛ (([Dom.apply]ₛ p) x)) Ψ))) := by
   glöb IH
   gintro x Φ Ψ p Hcont H
-  gcases ([Dom.PROJ]ₛ p) with (⟨k, hk⟩ | ⟨r, hr⟩)
-  · gassert hp of (p = [Dom.MK]ₛ (inl k))
+  gcases ([Dom.unfold]ₛ p) with (⟨k, hk⟩ | ⟨r, hr⟩)
+  · gassert hp of (p = [Dom.fold]ₛ (inl k))
     · gapply (Dom.eq_of_proj)
       gexact hk
     grewrite hp
@@ -195,7 +195,7 @@ gtheorem Dom.wp_bind_apply : ∀ x : Dom. ∀ Φ : (Dom → Ω). ∀ Ψ : (Dom �
     grewrite ← (Dom.wp_mk_num) k Φ
     grewrite ← hp
     gexact H
-  · gassert hp of (p = [Dom.MK]ₛ (inr r))
+  · gassert hp of (p = [Dom.fold]ₛ (inr r))
     · gapply (Dom.eq_of_proj)
       gexact hr
     gcases (r) with (⟨u, hu⟩ | ⟨r2, hr2⟩)
@@ -208,7 +208,7 @@ gtheorem Dom.wp_bind_apply : ∀ x : Dom. ∀ Φ : (Dom → Ω). ∀ Ψ : (Dom �
       gcases (r2) with (⟨w, hw⟩ | ⟨g, hg⟩)
       · grewrite hw at hp
         gassert hpt of (p = [Dom.thunk]ₛ w)
-        · gapply (eq_trans' Dom) p ([Dom.MK]ₛ (inr (inr (inl w)))) ([Dom.thunk]ₛ w)
+        · gapply (eq_trans' Dom) p ([Dom.fold]ₛ (inr (inr (inl w)))) ([Dom.thunk]ₛ w)
           · gexact hp
           · gapply (eq_symm' Dom)
             gapply (Dom.thunk_mk)

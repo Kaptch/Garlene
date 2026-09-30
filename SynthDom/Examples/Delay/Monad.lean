@@ -260,37 +260,37 @@ section unfolding
 
 gtheorem Delay.mk_proj' (A : TYPE) :
     ([SYNT.comp (Delay A) (TYPE.sum A (TYPE.later (Delay A))) (Delay A)
-        (Delay.PROJ A) (Delay.MK A)]ₛ = [idfun (Delay A)]ₛ) := by
+        (Delay.unfold A) (Delay.fold A)]ₛ = [idfun (Delay A)]ₛ) := by
   gapply (gfunext _ _)
     [SYNT.comp (Delay A) (TYPE.sum A (TYPE.later (Delay A))) (Delay A)
-      (Delay.PROJ A) (Delay.MK A)]ₛ
+      (Delay.unfold A) (Delay.fold A)]ₛ
     [idfun (Delay A)]ₛ
   gintro x
   gunfold SYNT.comp
   gsimpl
   gunfold idfun
   gsimpl
-  gapply (Delay.MK_PROJ A)
+  gapply (Delay.fold_unfold A)
 
 gtheorem Delay.proj_mk' (A : TYPE) :
     ([SYNT.comp (TYPE.sum A (TYPE.later (Delay A))) (Delay A)
-        (TYPE.sum A (TYPE.later (Delay A))) (Delay.MK A) (Delay.PROJ A)]ₛ
+        (TYPE.sum A (TYPE.later (Delay A))) (Delay.fold A) (Delay.unfold A)]ₛ
       = [idfun (TYPE.sum A (TYPE.later (Delay A)))]ₛ) := by
   gapply (gfunext _ _)
     [SYNT.comp (TYPE.sum A (TYPE.later (Delay A))) (Delay A)
-      (TYPE.sum A (TYPE.later (Delay A))) (Delay.MK A) (Delay.PROJ A)]ₛ
+      (TYPE.sum A (TYPE.later (Delay A))) (Delay.fold A) (Delay.unfold A)]ₛ
     [idfun (TYPE.sum A (TYPE.later (Delay A)))]ₛ
   gintro x
   gunfold SYNT.comp
   gsimpl
   gunfold idfun
   gsimpl
-  gapply (Delay.PROJ_MK A)
+  gapply (Delay.unfold_fold A)
 
 def DELAY.unfoldIso (X : ℐ.{u}) :
     DELAY.obj X ≅ ℐ.psum X (later.obj (DELAY.obj X)) where
-  hom := denoteHom (Delay.PROJ (TYPE.ax X))
-  inv := denoteHom (Delay.MK (TYPE.ax X))
+  hom := denoteHom (Delay.unfold (TYPE.ax X))
+  inv := denoteHom (Delay.fold (TYPE.ax X))
   hom_inv_id := by
     have h := denoteHom_of_goal (Delay.mk_proj' (TYPE.ax X))
     rw [denoteHom_comp] at h

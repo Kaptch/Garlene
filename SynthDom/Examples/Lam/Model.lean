@@ -7,40 +7,70 @@ public import SynthDom.Examples.Utils.Funext
 section dom
 open CategoryTheory
 
-gtype Dom := ν X. Δ Nat ⊕ Δ Unit ⊕ ▸X ⊕ ▸(X → X)
+gdef Dom.code : UNIV :=
+  fix X. [UNIV.SUM]ₛ ⟨[UNIV.DISCRETE (ULift Nat)]ₛ,
+    [UNIV.SUM]ₛ ⟨[UNIV.DISCRETE (ULift Unit)]ₛ, [UNIV.SUM]ₛ ⟨[UNIV.LATER]ₛ X,
+      [UNIV.LATER]ₛ (delay ([UNIV.ARR]ₛ ⟨adv 1 X, adv 1 X⟩))⟩⟩⟩
+
+def Dom : TYPE := El (Dom.code)
+
+gtheorem Dom.unfold_code :
+    ([Dom.code]ₛ = [UNIV.sum (UNIV.DISCRETE (ULift Nat)) (UNIV.sum (UNIV.DISCRETE (ULift Unit))
+      (UNIV.sum (UNIV.later Dom.code) (UNIV.later (UNIV.arr Dom.code Dom.code))))]ₛ) := by
+  gunfold Dom.code
+  gfix
+  grfl
+
+theorem Dom.eq : ⟦Dom⟧ₜ = ⟦⦃Δ Nat ⊕ Δ Unit ⊕ ▸ Dom ⊕ ▸ (Dom → Dom)⦄⟧ₜ :=
+  DECODES_of_goal (Dom.unfold_code)
+    (DECODES_sum (DECODES_DISCRETE _) (DECODES_sum (DECODES_DISCRETE _)
+      (DECODES_sum (DECODES_later (DECODES_refl _))
+        (DECODES_later (DECODES_arr (DECODES_refl _) (DECODES_refl _))))))
+
+def Dom.fold := GTY.fold (Dom.eq)
+def Dom.unfold := GTY.unfold (Dom.eq)
+
+theorem Dom.fold_unfold :
+    ⊢ᵍ ⟪∀ x : Dom. ([Dom.fold]ₛ ([Dom.unfold]ₛ x)) = x⟫ :=
+  GTY.fold_unfold (Dom.eq)
+theorem Dom.unfold_fold :
+    ⊢ᵍ ⟪∀ x : (Δ Nat ⊕ Δ Unit ⊕ ▸ Dom ⊕ ▸ (Dom → Dom)). ([Dom.unfold]ₛ ([Dom.fold]ₛ x)) = x⟫ :=
+  GTY.unfold_fold (Dom.eq)
+
+attribute [irreducible] Dom
 
 gdef Dom.num (n : Nat) : Dom :=
-  [Dom.MK]ₛ (inl δ(n : Nat))
+  [Dom.fold]ₛ (inl δ(n : Nat))
 
 gdef Dom.error : Dom :=
-  [Dom.MK]ₛ (inr (inl δ(() : Unit)))
+  [Dom.fold]ₛ (inr (inl δ(() : Unit)))
 
 gdef Dom.thunk : ▸ Dom → Dom :=
-  λ w. [Dom.MK]ₛ (inr (inr (inl w)))
+  λ w. [Dom.fold]ₛ (inr (inr (inl w)))
 
 gdef Dom.lam : ▸ (Dom → Dom) → Dom :=
-  λ g. [Dom.MK]ₛ (inr (inr (inr g)))
+  λ g. [Dom.fold]ₛ (inr (inr (inr g)))
 
 gdef Dom.apply : Dom → Dom → Dom :=
   fix ap. λ f. λ x.
-    case ([Dom.PROJ]ₛ f)
+    case ([Dom.unfold]ₛ f)
       (λ n. [Dom.error]ₛ)
       (λ r. case r
         (λ u. [Dom.error]ₛ)
         (λ r2. case r2
-          (λ w. [Dom.MK]ₛ (inr (inr (inl (delay (((adv 1 ap) (adv 1 w)) x))))))
-          (λ g. [Dom.MK]ₛ (inr (inr (inl (delay ((adv 1 g) x))))))))
+          (λ w. [Dom.fold]ₛ (inr (inr (inl (delay (((adv 1 ap) (adv 1 w)) x))))))
+          (λ g. [Dom.fold]ₛ (inr (inr (inl (delay ((adv 1 g) x))))))))
 
 gdef Dom.succ : Dom → Dom :=
-  λ x. case ([Dom.PROJ]ₛ x)
-    (λ n. [Dom.MK]ₛ (inl (δ(Nat.succ) ⊙ n)))
+  λ x. case ([Dom.unfold]ₛ x)
+    (λ n. [Dom.fold]ₛ (inl (δ(Nat.succ) ⊙ n)))
     (λ r. [Dom.error]ₛ)
 
 gdef Dom.add : Dom → Dom → Dom :=
   λ x. λ y.
-    case ([Dom.PROJ]ₛ x)
-      (λ n. case ([Dom.PROJ]ₛ y)
-        (λ m. [Dom.MK]ₛ (inl ((δ(Nat.add) ⊙ n) ⊙ m)))
+    case ([Dom.unfold]ₛ x)
+      (λ n. case ([Dom.unfold]ₛ y)
+        (λ m. [Dom.fold]ₛ (inl ((δ(Nat.add) ⊙ n) ⊙ m)))
         (λ r. [Dom.error]ₛ))
       (λ r. [Dom.error]ₛ)
 
@@ -49,7 +79,7 @@ gdef Dom.fixp : Dom → Dom :=
 
 gdef Dom.plus : Dom → Dom → Dom :=
   fix a. λ x. λ y.
-    case ([Dom.PROJ]ₛ x)
+    case ([Dom.unfold]ₛ x)
       (λ n. y)
       (λ r. case r
         (λ u. [Dom.error]ₛ)
@@ -59,7 +89,7 @@ gdef Dom.plus : Dom → Dom → Dom :=
 
 gdef Dom.mult : Dom → Dom → Dom :=
   fix m. λ x. λ y.
-    case ([Dom.PROJ]ₛ x)
+    case ([Dom.unfold]ₛ x)
       (λ n. [Dom.num 0]ₛ)
       (λ r. case r
         (λ u. [Dom.error]ₛ)
@@ -74,7 +104,7 @@ gtheorem Dom.succ_num (n : Nat) :
   gunfold Dom.succ
   gunfold Dom.num
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -83,9 +113,9 @@ gtheorem Dom.add_num (n m : Nat) :
   gunfold Dom.add
   gunfold Dom.num
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -95,7 +125,7 @@ gtheorem Dom.apply_num (n : Nat) :
   gunfold Dom.apply
   gfix
   gunfold Dom.num
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -108,7 +138,7 @@ gtheorem Dom.apply_lam :
   gfix
   gunfold Dom.lam
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   gunfold Dom.thunk
   gsimpl
@@ -123,7 +153,7 @@ gtheorem Dom.apply_thunk :
   gfix
   gunfold Dom.thunk
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -174,7 +204,7 @@ gtheorem Dom.plus_zero :
   gunfold Dom.plus
   gfix
   gunfold Dom.num
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -187,7 +217,7 @@ gtheorem Dom.plus_succ :
   gfix
   gunfold Dom.thunk
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -197,7 +227,7 @@ gtheorem Dom.mult_zero :
   gunfold Dom.mult
   gfix
   gunfold Dom.num
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 
@@ -210,7 +240,7 @@ gtheorem Dom.mult_succ :
   gfix
   gunfold Dom.thunk
   gsimpl
-  grewrite (Dom.PROJ_MK)
+  grewrite (Dom.unfold_fold)
   gsimpl
   grfl
 

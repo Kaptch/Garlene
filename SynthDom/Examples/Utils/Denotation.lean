@@ -11,46 +11,6 @@ section denotation
 
 universe u
 
-private lemma interp_eq_pure {Γ : CTX.{u}} {τ : TYPE.{u}} {e1 e2 : EXPR.{u}}
-    (h1 : (expr_interp Γ e1 τ).Dom) (h2 : (expr_interp Γ e2 τ).Dom) :
-    expr_interp Γ (EXPR.eq τ e1 e2) TYPE.prop
-      = pure (interp_eq ((expr_interp Γ e1 τ).get h1) ((expr_interp Γ e2 τ).get h2)) := by
-  simp only [expr_interp, bind, Part.Dom.bind h1, Part.Dom.bind h2]
-
-theorem denote_eq {τ : TYPE.{u}} {L R : EXPR.{u}}
-    (H : PROVES [[]] [[]] (EXPR.eq τ L R))
-    (dL : (expr_interp [[]] L τ).Dom) (dR : (expr_interp [[]] R τ).Dom) :
-    (expr_interp [[]] L τ).get dL = (expr_interp [[]] R τ).get dR :=
-  soundness_eq _ _ <| entails_trans _ _ _
-    (by simp only [pctx, poctx]; exact conj_intro true_intro true_intro) <|
-    Soundness.soundness H
-      (by intro k l Ψ' Φ Hk Hl; rcases k with _ | k <;> simp_all)
-      [[]] _
-      (by simp only [Soundness.interp_pctx, Soundness.interp_pctx_at,
-            Soundness.interp_poctx_at]
-          exact (Part.bind_some _ _).trans (Part.bind_some _ _))
-      (interp_eq_pure dL dR)
-
-private lemma nil_ren_interp_id {σ : REN} (H : TYPED_REN σ [[]] [[]]) :
-    interp_typed_ren H = 𝟙 (⟦([[]] : CTX.{u})⟧ₛ) :=
-  NatTrans.ext <| funext fun X => ConcreteCategory.hom_ext _ _ fun _ =>
-    @Subsingleton.elim _ (interp_nil_obj_subsingleton X.unop) _ _
-
-theorem quote_interp {τ : TYPE.{u}} (c : SYNT τ) (k : Nat) (m : Option Nat) :
-    expr_interp ([[]] : CTX.{u}) (EXPR.quote c k m) τ = expr_interp [[]] c.expr τ := by
-  refine (congrArg (expr_interp ([[]] : CTX.{u}) · τ)
-    (quote_reoffset c k m 1 (some 0))).trans
-      ((eq_weak _ c.expr τ (TYPED_REN.global_n_weak [[]] (by simp)) c.proof).trans ?_)
-  rw [nil_ren_interp_id]
-  simp only [Category.id_comp]
-  exact Part.map_id' (fun _ => rfl) _
-
-theorem quote_interp_get {τ : TYPE.{u}} (c : SYNT τ) (k : Nat) (m : Option Nat)
-    (d : (expr_interp [[]] (EXPR.quote c k m) τ).Dom) :
-    (expr_interp [[]] (EXPR.quote c k m) τ).get d = synt_interp c := by
-  simp only [quote_interp] at d ⊢
-  rfl
-
 def denoteHom {σ τ : TYPE.{u}} (e : SYNT ⦃σ → τ⦄) : (⟦σ⟧ₜ : ℐ.{u}) ⟶ ⟦τ⟧ₜ :=
   (ρ_ _).inv ≫ MonoidalClosed.uncurry (GlobalElt e)
 

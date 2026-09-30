@@ -214,25 +214,6 @@ lemma globalElt_app_delay {A B : TYPE.{i}} (f : SYNT (TYPE.arr (TYPE.later A) B)
     _ = (GlobalElt c ≫ next.app ⟦A⟧ₜ) ≫ MonoidalClosed.uncurry' (GlobalElt f) :=
       congrArg (· ≫ MonoidalClosed.uncurry' (GlobalElt f)) (globalElt_delay c)
 
-lemma globalElt_app_delayed_pair {A B C : TYPE.{i}}
-    (f : SYNT (TYPE.arr (TYPE.prod (TYPE.later A) (TYPE.later B)) C))
-    (a : SYNT A) (b : SYNT B) :
-    GlobalElt (box([f]ₛ ⟨delay [a]ₛ, delay [b]ₛ⟩) : SYNT C) =
-      CartesianMonoidalCategory.lift (GlobalElt a ≫ next.app ⟦A⟧ₜ)
-          (GlobalElt b ≫ next.app ⟦B⟧ₜ) ≫ MonoidalClosed.uncurry' (GlobalElt f) := by
-  let delayedA : SYNT (TYPE.later A) := box(delay [a]ₛ)
-  let delayedB : SYNT (TYPE.later B) := box(delay [b]ₛ)
-  calc
-    GlobalElt (box([f]ₛ ⟨delay [a]ₛ, delay [b]ₛ⟩) : SYNT C) =
-        GlobalElt (box([f]ₛ ⟨[delayedA]ₛ, [delayedB]ₛ⟩) : SYNT C) :=
-      globalElt_congr (by simp only [delayedA, delayedB, quote_eq_expr])
-    _ = CartesianMonoidalCategory.lift (GlobalElt delayedA) (GlobalElt delayedB)
-          ≫ MonoidalClosed.uncurry' (GlobalElt f) := globalElt_app_pair f delayedA delayedB
-    _ = CartesianMonoidalCategory.lift (GlobalElt a ≫ next.app ⟦A⟧ₜ)
-          (GlobalElt b ≫ next.app ⟦B⟧ₜ) ≫ MonoidalClosed.uncurry' (GlobalElt f) :=
-      congrArg (· ≫ MonoidalClosed.uncurry' (GlobalElt f))
-        (congrArg₂ CartesianMonoidalCategory.lift (globalElt_delay a) (globalElt_delay b))
-
 lemma ax_interp {A : TYPE.{i}} (Γ : CTX.{i}) (f : 𝟙_ ℐ.{i} ⟶ ⟦A⟧ₜ) :
     expr_interp Γ (EXPR.ax A f) A = Part.some (toUnit ⟦Γ⟧ₛ ≫ f) := by
   rw [show expr_interp Γ (EXPR.ax A f) A

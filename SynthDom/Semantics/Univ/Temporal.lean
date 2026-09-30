@@ -123,12 +123,6 @@ section constructors
   @[irreducible]
   def U_later : 𝟙_ _ ⟶ (ihom (later.obj U.{i})).obj U.{i} := MonoidalClosed.curry' U_later'
 
-  def U_larr' : later.obj U.{i} ⊗ later.obj U.{i} ⟶ U.{i} :=
-    LaxMonoidal.μ later U.{i} U.{i} ≫ later.map U_arr' ≫ U_later'
-  @[irreducible]
-  def U_larr : 𝟙_ _ ⟶ (ihom (later.obj U.{i} ⊗ later.obj U.{i})).obj U.{i} :=
-    MonoidalClosed.curry' U_larr'
-
   unseal U U_later' in
   private lemma U_later'_el {τ : 𝟙_ ℐ.{i + 1} ⟶ U.{i}} (n : ℕ) :
       U.el (ConcreteCategory.hom ((τ ≫ next.app U ≫ U_later').app (Opposite.op (n + 1)))
@@ -211,41 +205,6 @@ section constructors
           exact thin_hom_eqToHom4 (C := (Over X'')ᵒᵖ)
             (U.el (ConcreteCategory.hom (τ.app (Opposite.op X'')) (unitPt (Opposite.op X''))))
             _ _ rfl rfl _ _ _ _ _ _
-
-  unseal U classify U_arr U_arr' U_later U_later' U_larr in
-  @[simp]
-  lemma U_larr_push {τ1 τ2 : 𝟙_ ℐ.{i + 1} ⟶ U.{i}}
-    : classify.hom (CartesianMonoidalCategory.lift (τ1 ≫ next.app U) (τ2 ≫ next.app U)
-        ≫ MonoidalClosed.uncurry' U_larr)
-      = later.obj (ℐ.parr (ConcreteCategory.hom classify.hom τ1)
-          (ConcreteCategory.hom classify.hom τ2)) := by
-    have hm : CartesianMonoidalCategory.lift (τ1 ≫ next.app U) (τ2 ≫ next.app U)
-          ≫ MonoidalClosed.uncurry' U_larr
-        = (CartesianMonoidalCategory.lift τ1 τ2 ≫ MonoidalClosed.uncurry' U_arr)
-            ≫ next.app U ≫ MonoidalClosed.uncurry' U_later := by
-      rw [U_larr, U_arr, U_later]
-      simp only [MonoidalClosed.uncurry'_curry']
-      rw [U_larr']
-      have hnat := next.naturality U_arr'
-      simp only [Functor.id_map] at hnat
-      calc CartesianMonoidalCategory.lift (τ1 ≫ next.app U) (τ2 ≫ next.app U)
-            ≫ LaxMonoidal.μ later U U ≫ later.map U_arr' ≫ U_later'
-          = CartesianMonoidalCategory.lift τ1 τ2
-              ≫ ((next.app U ⊗ₘ next.app U) ≫ LaxMonoidal.μ later U U)
-              ≫ later.map U_arr' ≫ U_later' := by
-            rw [← CartesianMonoidalCategory.lift_map]
-            simp only [Category.assoc]
-        _ = CartesianMonoidalCategory.lift τ1 τ2
-              ≫ next.app (U ⊗ U) ≫ later.map U_arr' ≫ U_later' :=
-            congrArg (fun t => CartesianMonoidalCategory.lift τ1 τ2
-              ≫ t ≫ later.map U_arr' ≫ U_later') (next_μ U U)
-        _ = CartesianMonoidalCategory.lift τ1 τ2
-              ≫ (U_arr' ≫ next.app U) ≫ U_later' :=
-            congrArg (CartesianMonoidalCategory.lift τ1 τ2 ≫ ·)
-              ((Category.assoc _ _ _).symm.trans (congrArg (· ≫ U_later') hnat.symm))
-        _ = (CartesianMonoidalCategory.lift τ1 τ2 ≫ U_arr') ≫ next.app U ≫ U_later' := by
-            simp only [Category.assoc]
-    rw [hm, U_later_push, U_arr_push]
 
 end constructors
 

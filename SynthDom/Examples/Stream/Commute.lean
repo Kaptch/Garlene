@@ -9,30 +9,30 @@ open CategoryTheory
 
 gdef Delay.swap (X : TYPE) : [Delay ⦃▸ X⦄] → ▸ [Delay X] :=
   fix μ. λ d.
-    case ([Delay.PROJ ⦃▸ X⦄]ₛ d)
-      (λ w. delay ([Delay.MK X]ₛ (inl (adv 1 w))))
-      (λ w. delay ([Delay.MK X]ₛ (inr ((adv 1 μ) (adv 1 w)))))
+    case ([Delay.unfold ⦃▸ X⦄]ₛ d)
+      (λ w. delay ([Delay.fold X]ₛ (inl (adv 1 w))))
+      (λ w. delay ([Delay.fold X]ₛ (inr ((adv 1 μ) (adv 1 w)))))
 
 section swap_equations
 gtheorem Delay.swap_ret (X : TYPE) :
     ∀ w : ▸ X.
-      (([Delay.swap X]ₛ ([Delay.MK ⦃▸ X⦄]ₛ (inl w)))
-        = delay ([Delay.MK X]ₛ (inl (adv 1 w)))) := by
+      (([Delay.swap X]ₛ ([Delay.fold ⦃▸ X⦄]ₛ (inl w)))
+        = delay ([Delay.fold X]ₛ (inl (adv 1 w)))) := by
     gintro w
     gunfold Delay.swap
     gfix
-    grewrite (Delay.PROJ_MK ⦃▸ X⦄)
+    grewrite (Delay.unfold_fold ⦃▸ X⦄)
     gsimpl
     grfl
 
 gtheorem Delay.swap_step (X : TYPE) :
     ∀ w : ▸ [Delay ⦃▸ X⦄].
-      (([Delay.swap X]ₛ ([Delay.MK ⦃▸ X⦄]ₛ (inr w)))
-        = delay ([Delay.MK X]ₛ (inr ([Delay.swap X]ₛ (adv 1 w))))) := by
+      (([Delay.swap X]ₛ ([Delay.fold ⦃▸ X⦄]ₛ (inr w)))
+        = delay ([Delay.fold X]ₛ (inr ([Delay.swap X]ₛ (adv 1 w))))) := by
     gintro w
     gunfold Delay.swap
     gfix
-    grewrite (Delay.PROJ_MK ⦃▸ X⦄)
+    grewrite (Delay.unfold_fold ⦃▸ X⦄)
     gsimpl
     grfl
 
@@ -40,23 +40,23 @@ end swap_equations
 
 gdef Str.distr (A : TYPE) : [Delay (Str A)] → [Str (Delay A)] :=
   fix μ. λ d.
-    [Str.MK (Delay A)]ₛ
-      ⟨([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.PROJ A]ₛ s))) d,
+    [Str.fold (Delay A)]ₛ
+      ⟨([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.unfold A]ₛ s))) d,
        delay ((adv 1 μ)
          (adv 1 ([Delay.swap (Str A)]ₛ
            (([Delay.map (Str A) ⦃▸ [Str A]⦄]ₛ
-               (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) d))))⟩
+               (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) d))))⟩
 
 section distr_equations
 gtheorem Str.distr_cons (A : TYPE) :
     ∀ d : [Delay (Str A)].
       (([Str.distr A]ₛ d)
-        = [Str.MK (Delay A)]ₛ
-            ⟨([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.PROJ A]ₛ s))) d,
+        = [Str.fold (Delay A)]ₛ
+            ⟨([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.unfold A]ₛ s))) d,
              delay (([Str.distr A]ₛ
                (adv 1 ([Delay.swap (Str A)]ₛ
                  (([Delay.map (Str A) ⦃▸ [Str A]⦄]ₛ
-                     (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) d)))))⟩) := by
+                     (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) d)))))⟩) := by
     gintro d
     gunfold Str.distr
     gfix
@@ -64,36 +64,36 @@ gtheorem Str.distr_cons (A : TYPE) :
 
 gtheorem Str.distr_hd (A : TYPE) :
     ∀ d : [Delay (Str A)].
-      (π₁ ([Str.PROJ (Delay A)]ₛ (([Str.distr A]ₛ d)))
-        = ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.PROJ A]ₛ s))) d) := by
+      (π₁ ([Str.unfold (Delay A)]ₛ (([Str.distr A]ₛ d)))
+        = ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.unfold A]ₛ s))) d) := by
     gintro d
     grewrite (Str.distr_cons A)
-    grewrite (Str.PROJ_MK (Delay A))
+    grewrite (Str.unfold_fold (Delay A))
     gsimpl
     grfl
 
 gtheorem Str.distr_hd_fn (A : TYPE) :
-    ((λ x : [Delay (Str A)]. π₁ ([Str.PROJ (Delay A)]ₛ ([Str.distr A]ₛ x)))
+    ((λ x : [Delay (Str A)]. π₁ ([Str.unfold (Delay A)]ₛ ([Str.distr A]ₛ x)))
       = (λ x : [Delay (Str A)].
-          ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.PROJ A]ₛ s))) x)) := by
+          ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.unfold A]ₛ s))) x)) := by
   gapply (gfunext _ _)
-    (λ x : [Delay (Str A)]. π₁ ([Str.PROJ (Delay A)]ₛ ([Str.distr A]ₛ x)))
+    (λ x : [Delay (Str A)]. π₁ ([Str.unfold (Delay A)]ₛ ([Str.distr A]ₛ x)))
     (λ x : [Delay (Str A)].
-      ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.PROJ A]ₛ s))) x)
+      ([Delay.map (Str A) A]ₛ (λ s : [Str A]. π₁ ([Str.unfold A]ₛ s))) x)
   gintro x
   gsimpl
   gapply (Str.distr_hd A) x
 
 gtheorem Str.distr_tl (A : TYPE) :
     ∀ d : [Delay (Str A)].
-      (π₂ ([Str.PROJ (Delay A)]ₛ (([Str.distr A]ₛ d)))
+      (π₂ ([Str.unfold (Delay A)]ₛ (([Str.distr A]ₛ d)))
         = delay (([Str.distr A]ₛ
             (adv 1 ([Delay.swap (Str A)]ₛ
               (([Delay.map (Str A) ⦃▸ [Str A]⦄]ₛ
-                  (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) d)))))) := by
+                  (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) d)))))) := by
     gintro d
     grewrite (Str.distr_cons A)
-    grewrite (Str.PROJ_MK (Delay A))
+    grewrite (Str.unfold_fold (Delay A))
     gsimpl
     grfl
 
@@ -102,8 +102,8 @@ end distr_equations
 section distr_laws
 gtheorem Str.distr_ret (A : TYPE) :
     ∀ t : [Str A].
-      (([Str.distr A]ₛ ([Delay.MK (Str A)]ₛ (inl t)))
-        = ([Str.map A (Delay A)]ₛ (λ a : A. [Delay.MK A]ₛ (inl a))) t) := by
+      (([Str.distr A]ₛ ([Delay.fold (Str A)]ₛ (inl t)))
+        = ([Str.map A (Delay A)]ₛ (λ a : A. [Delay.fold A]ₛ (inl a))) t) := by
     glöb IH
     gintro t
     grewrite (Str.distr_cons A)
@@ -114,7 +114,7 @@ gtheorem Str.distr_ret (A : TYPE) :
     gsimpl
     gcong
     gmono IH as G
-    gapply G (adv 1 (π₂ ([Str.PROJ A]ₛ t)))
+    gapply G (adv 1 (π₂ ([Str.unfold A]ₛ t)))
 
 end distr_laws
 
@@ -125,18 +125,18 @@ gtheorem Delay.map_congr (A B : TYPE) :
         → ∀ d : [Delay A]. (([Delay.map A B]ₛ f) d = ([Delay.map A B]ₛ g) d)) := by
     glöb IH
     gintro f g H d
-    gcases ([Delay.PROJ A]ₛ d) with (⟨v, h⟩ | ⟨v, h⟩)
-    · gassert HMK of (([Delay.MK A]ₛ (inl v)) = d)
+    gcases ([Delay.unfold A]ₛ d) with (⟨v, h⟩ | ⟨v, h⟩)
+    · gassert HMK of (([Delay.fold A]ₛ (inl v)) = d)
       · grewrite ← h
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.map_ret A B)
       grewrite (Delay.map_ret A B)
       grewrite H v
       grfl
-    · gassert HMK of (([Delay.MK A]ₛ (inr v)) = d)
+    · gassert HMK of (([Delay.fold A]ₛ (inr v)) = d)
       · grewrite ← h
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.map_step A B)
       grewrite (Delay.map_step A B)
@@ -152,8 +152,8 @@ gtheorem Str.mapDup_ret_delayed (A : TYPE) :
     ∀ w : ▸ [Str A].
       (delay (([Delay.map (Str A)
                           (Str (Str A))]ₛ (λ t : [Str A]. [Str.dup A]ₛ t))
-                ([Delay.MK (Str A)]ₛ (inl (adv 1 w))))
-        = delay ([Delay.MK (Str (Str A))]ₛ
+                ([Delay.fold (Str A)]ₛ (inl (adv 1 w))))
+        = delay ([Delay.fold (Str (Str A))]ₛ
                   (inl ([Str.dup A]ₛ (adv 1 w))))) := by
     gintro w
     gnext
@@ -165,33 +165,33 @@ gtheorem Str.mapDup_step_delayed (A : TYPE) :
     ∀ v : ▸ [Delay (Str A)].
       (delay (([Delay.map (Str A)
                           (Str (Str A))]ₛ (λ t : [Str A]. [Str.dup A]ₛ t))
-                ([Delay.MK (Str A)]ₛ
+                ([Delay.fold (Str A)]ₛ
                   (inr ([Delay.swap (Str A)]ₛ
                     (([Delay.map (Str A)
                                  ⦃▸ [Str A]⦄]ₛ
-                        (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) (adv 1 v))))))
-        = delay ([Delay.MK (Str (Str A))]ₛ
+                        (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) (adv 1 v))))))
+        = delay ([Delay.fold (Str (Str A))]ₛ
                   (inr (delay (([Delay.map (Str A)
                                            (Str (Str A))]ₛ
                                   (λ t : [Str A]. [Str.dup A]ₛ t))
                           (adv 1 ([Delay.swap (Str A)]ₛ
                             (([Delay.map (Str A)
                                          ⦃▸ [Str A]⦄]ₛ
-                                (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) (adv 1 v))))))))) := by
+                                (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) (adv 1 v))))))))) := by
     gintro v
     gnext
     gapply (Delay.map_step (Str A) (Str (Str A)))
       (λ t : [Str A]. [Str.dup A]ₛ t) (([Delay.swap (Str A)]ₛ
       (([Delay.map (Str A)
                    ⦃▸ [Str A]⦄]ₛ
-          (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) (adv 1 v))))
+          (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) (adv 1 v))))
 
 gtheorem Str.dup_swap_comm (A : TYPE) :
     ∀ d : [Delay (Str A)].
       (([Delay.swap (Str (Str A))]ₛ
           (([Delay.map (Str (Str A))
                        ⦃▸ [Str (Str A)]⦄]ₛ
-              (λ s : [Str (Str A)]. π₂ ([Str.PROJ (Str A)]ₛ s)))
+              (λ s : [Str (Str A)]. π₂ ([Str.unfold (Str A)]ₛ s)))
             (([Delay.map (Str A)
                          (Str (Str A))]ₛ (λ t : [Str A]. [Str.dup A]ₛ t)) d)))
         = delay (([Delay.map (Str A)
@@ -199,13 +199,13 @@ gtheorem Str.dup_swap_comm (A : TYPE) :
             (adv 1 ([Delay.swap (Str A)]ₛ
               (([Delay.map (Str A)
                            ⦃▸ [Str A]⦄]ₛ
-                  (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) d))))) := by
+                  (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) d))))) := by
     glöb IH
     gintro d
-    gcases ([Delay.PROJ (Str A)]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK (Str A)]ₛ (inl v)) = d)
+    gcases ([Delay.unfold (Str A)]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold (Str A)]ₛ (inl v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Str A))
+        gapply (Delay.fold_unfold (Str A))
       grewrite ← HMK
       grewrite (Delay.map_ret (Str A)
                   (Str (Str A)))
@@ -217,13 +217,13 @@ gtheorem Str.dup_swap_comm (A : TYPE) :
       grewrite (Delay.map_ret (Str A) ⦃▸ [Str A]⦄)
       grewrite (Delay.swap_ret (Str A))
       gsimpl
-      grewrite (Str.mapDup_ret_delayed A) (π₂ ([Str.PROJ A]ₛ v))
+      grewrite (Str.mapDup_ret_delayed A) (π₂ ([Str.unfold A]ₛ v))
       grewrite (Str.dup_tl A)
       gsimpl
       grfl
-    · gassert HMK of (([Delay.MK (Str A)]ₛ (inr v)) = d)
+    · gassert HMK of (([Delay.fold (Str A)]ₛ (inr v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Str A))
+        gapply (Delay.fold_unfold (Str A))
       grewrite ← HMK
       grewrite (Delay.map_step (Str A)
                   (Str (Str A)))
@@ -244,7 +244,7 @@ gtheorem Str.dup_swap_comm (A : TYPE) :
 gtheorem Str.mapHd_dup_id (A : TYPE) :
     ∀ d : [Delay (Str A)].
       ((([Delay.map (Str (Str A)) (Str A)]ₛ
-          (λ s : [Str (Str A)]. π₁ ([Str.PROJ (Str A)]ₛ s)))
+          (λ s : [Str (Str A)]. π₁ ([Str.unfold (Str A)]ₛ s)))
         (([Delay.map (Str A) (Str (Str A))]ₛ
             (λ t : [Str A]. [Str.dup A]ₛ t)) d))
         = d) := by
@@ -283,7 +283,7 @@ gtheorem Str.distr_dup (A : TYPE) :
     gapply G (adv 1 ([Delay.swap (Str A)]ₛ
       (([Delay.map (Str A)
                    ⦃▸ [Str A]⦄]ₛ
-          (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) d)))
+          (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) d)))
 
 end dup_law
 
@@ -294,18 +294,18 @@ gtheorem Delay.bind_congr (A B : TYPE) :
         → ∀ d : [Delay A]. (([Delay.bind A B]ₛ k) d = ([Delay.bind A B]ₛ g) d)) := by
     glöb IH
     gintro k g H d
-    gcases ([Delay.PROJ A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK A]ₛ (inl v)) = d)
+    gcases ([Delay.unfold A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold A]ₛ (inl v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.bind_ret A B)
       grewrite (Delay.bind_ret A B)
       grewrite H v
       grfl
-    · gassert HMK of (([Delay.MK A]ₛ (inr v)) = d)
+    · gassert HMK of (([Delay.fold A]ₛ (inr v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.bind_step A B)
       grewrite (Delay.bind_step A B)
@@ -320,17 +320,17 @@ gtheorem Delay.map_bind (A B C : TYPE) :
         = ([Delay.bind A C]ₛ (λ x : A. ([Delay.map B C]ₛ f) (k x))) d) := by
     glöb IH
     gintro k f d
-    gcases ([Delay.PROJ A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK A]ₛ (inl v)) = d)
+    gcases ([Delay.unfold A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold A]ₛ (inl v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.bind_ret A B)
       grewrite (Delay.bind_ret A C)
       grfl
-    · gassert HMK of (([Delay.MK A]ₛ (inr v)) = d)
+    · gassert HMK of (([Delay.fold A]ₛ (inr v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.bind_step A B)
       grewrite (Delay.map_step B C)
@@ -345,18 +345,18 @@ gtheorem Delay.bind_map (A B C : TYPE) :
         = ([Delay.bind A C]ₛ (λ x : A. k (g x))) d) := by
     glöb IH
     gintro g k d
-    gcases ([Delay.PROJ A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK A]ₛ (inl v)) = d)
+    gcases ([Delay.unfold A]ₛ d) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold A]ₛ (inl v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.map_ret A B)
       grewrite (Delay.bind_ret B C)
       grewrite (Delay.bind_ret A C)
       grfl
-    · gassert HMK of (([Delay.MK A]ₛ (inr v)) = d)
+    · gassert HMK of (([Delay.fold A]ₛ (inr v)) = d)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ A)
+        gapply (Delay.fold_unfold A)
       grewrite ← HMK
       grewrite (Delay.map_step A B)
       grewrite (Delay.bind_step B C)
@@ -376,10 +376,10 @@ gtheorem Delay.swap_natural (X Y : TYPE) :
         = delay (([Delay.map X Y]ₛ h) (adv 1 ([Delay.swap X]ₛ c)))) := by
     glöb IH
     gintro h c
-    gcases ([Delay.PROJ ⦃▸ X⦄]ₛ c) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK ⦃▸ X⦄]ₛ (inl v)) = c)
+    gcases ([Delay.unfold ⦃▸ X⦄]ₛ c) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold ⦃▸ X⦄]ₛ (inl v)) = c)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ ⦃▸ X⦄)
+        gapply (Delay.fold_unfold ⦃▸ X⦄)
       grewrite ← HMK
       grewrite (Delay.map_ret ⦃▸ X⦄ ⦃▸ Y⦄)
       grewrite (Delay.swap_ret Y)
@@ -388,9 +388,9 @@ gtheorem Delay.swap_natural (X Y : TYPE) :
       gnext
       grewrite (Delay.map_ret X Y) h (adv 1 v)
       grfl
-    · gassert HMK of (([Delay.MK ⦃▸ X⦄]ₛ (inr v)) = c)
+    · gassert HMK of (([Delay.fold ⦃▸ X⦄]ₛ (inr v)) = c)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ ⦃▸ X⦄)
+        gapply (Delay.fold_unfold ⦃▸ X⦄)
       grewrite ← HMK
       grewrite (Delay.map_step ⦃▸ X⦄ ⦃▸ Y⦄)
       grewrite (Delay.swap_step Y)
@@ -409,7 +409,7 @@ gtheorem Str.join_swap_comm (A : TYPE) :
       (([Delay.swap (Str A)]ₛ
           (([Delay.map (Str A)
                        ⦃▸ [Str A]⦄]ₛ
-              (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s)))
+              (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s)))
             (([Delay.bind (Delay (Str A))
                           (Str A)]ₛ
                 (λ c : [Delay (Str A)]. c)) dd)))
@@ -423,13 +423,13 @@ gtheorem Str.join_swap_comm (A : TYPE) :
                     [Delay.swap (Str A)]ₛ
                       (([Delay.map (Str A)
                                    ⦃▸ [Str A]⦄]ₛ
-                          (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) c))) dd)))))) := by
+                          (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) c))) dd)))))) := by
     glöb IH
     gintro dd
-    gcases ([Delay.PROJ (Delay (Str A))]ₛ dd) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK (Delay (Str A))]ₛ (inl v)) = dd)
+    gcases ([Delay.unfold (Delay (Str A))]ₛ dd) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold (Delay (Str A))]ₛ (inl v)) = dd)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Delay (Str A)))
+        gapply (Delay.fold_unfold (Delay (Str A)))
       grewrite ← HMK
       grewrite (Delay.bind_ret (Delay (Str A))
                   (Str A))
@@ -442,19 +442,19 @@ gtheorem Str.join_swap_comm (A : TYPE) :
         (([Delay.swap (Str A)]ₛ
           (([Delay.map (Str A)
                        ⦃▸ [Str A]⦄]ₛ
-              (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) v)))
+              (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) v)))
       gnext
       gsimpl
       grewrite (Delay.bind_ret (Delay (Str A)) (Str A))
         (λ c : [Delay (Str A)]. c) (adv 1 ([Delay.swap (Str A)]ₛ
         (([Delay.map (Str A)
                      ⦃▸ [Str A]⦄]ₛ
-            (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) v)))
+            (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) v)))
       gsimpl
       grfl
-    · gassert HMK of (([Delay.MK (Delay (Str A))]ₛ (inr v)) = dd)
+    · gassert HMK of (([Delay.fold (Delay (Str A))]ₛ (inr v)) = dd)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Delay (Str A)))
+        gapply (Delay.fold_unfold (Delay (Str A)))
       grewrite ← HMK
       grewrite (Delay.bind_step (Delay (Str A))
                   (Str A))
@@ -481,7 +481,7 @@ gtheorem Str.mapTl_distr_comm (A : TYPE) :
       ((([Delay.map (Str (Delay A))
                     ⦃▸ [Str (Delay A)]⦄]ₛ
           (λ s : [Str (Delay A)].
-            π₂ ([Str.PROJ (Delay A)]ₛ s)))
+            π₂ ([Str.unfold (Delay A)]ₛ s)))
         (([Delay.map (Delay (Str A))
                      (Str (Delay A))]ₛ
             (λ c : [Delay (Str A)]. [Str.distr A]ₛ c)) dd))
@@ -495,13 +495,13 @@ gtheorem Str.mapTl_distr_comm (A : TYPE) :
                 [Delay.swap (Str A)]ₛ
                   (([Delay.map (Str A)
                                ⦃▸ [Str A]⦄]ₛ
-                      (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) c))) dd))) := by
+                      (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) c))) dd))) := by
     glöb IH
     gintro dd
-    gcases ([Delay.PROJ (Delay (Str A))]ₛ dd) with (⟨v, hd⟩ | ⟨v, hd⟩)
-    · gassert HMK of (([Delay.MK (Delay (Str A))]ₛ (inl v)) = dd)
+    gcases ([Delay.unfold (Delay (Str A))]ₛ dd) with (⟨v, hd⟩ | ⟨v, hd⟩)
+    · gassert HMK of (([Delay.fold (Delay (Str A))]ₛ (inl v)) = dd)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Delay (Str A)))
+        gapply (Delay.fold_unfold (Delay (Str A)))
       grewrite ← HMK
       grewrite (Delay.map_ret (Delay (Str A))
                   (Str (Delay A)))
@@ -511,9 +511,9 @@ gtheorem Str.mapTl_distr_comm (A : TYPE) :
       grewrite (Delay.map_ret (Delay (Str A)) ⦃▸ [Delay (Str A)]⦄)
       grewrite (Delay.map_ret ⦃▸ [Delay (Str A)]⦄ ⦃▸ [Str (Delay A)]⦄)
       grfl
-    · gassert HMK of (([Delay.MK (Delay (Str A))]ₛ (inr v)) = dd)
+    · gassert HMK of (([Delay.fold (Delay (Str A))]ₛ (inr v)) = dd)
       · grewrite ← hd
-        gapply (Delay.MK_PROJ (Delay (Str A)))
+        gapply (Delay.fold_unfold (Delay (Str A)))
       grewrite ← HMK
       grewrite (Delay.map_step (Delay (Str A))
                   (Str (Delay A)))
@@ -570,7 +570,7 @@ gtheorem Str.distr_join (A : TYPE) :
           (λ c : [Delay (Str A)].
             [Delay.swap (Str A)]ₛ
               (([Delay.map (Str A) ⦃▸ [Str A]⦄]ₛ
-                  (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) c))) dd)
+                  (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) c))) dd)
     gsimpl
     gcong
     gmono IH as G
@@ -581,7 +581,7 @@ gtheorem Str.distr_join (A : TYPE) :
             [Delay.swap (Str A)]ₛ
               (([Delay.map (Str A)
                            ⦃▸ [Str A]⦄]ₛ
-                  (λ s : [Str A]. π₂ ([Str.PROJ A]ₛ s))) c))) dd)))
+                  (λ s : [Str A]. π₂ ([Str.unfold A]ₛ s))) c))) dd)))
 
 end mult_law
 
@@ -590,13 +590,13 @@ section pointfree_laws
 gtheorem Str.mapHd_dup_id' (A : TYPE) :
     ((([comp (Delay (Str A)) (Delay (Str (Str A))) (Delay (Str A))]ₛ
         ([Delay.map (Str (Str A)) (Str A)]ₛ
-          (λ s : [Str (Str A)]. π₁ ([Str.PROJ (Str A)]ₛ s))))
+          (λ s : [Str (Str A)]. π₁ ([Str.unfold (Str A)]ₛ s))))
       ([Delay.map (Str A) (Str (Str A))]ₛ (λ t : [Str A]. [Str.dup A]ₛ t)))
       = [idfun (Delay (Str A))]ₛ) := by
   gapply (gfunext _ _)
     (([comp (Delay (Str A)) (Delay (Str (Str A))) (Delay (Str A))]ₛ
         ([Delay.map (Str (Str A)) (Str A)]ₛ
-          (λ s : [Str (Str A)]. π₁ ([Str.PROJ (Str A)]ₛ s))))
+          (λ s : [Str (Str A)]. π₁ ([Str.unfold (Str A)]ₛ s))))
       ([Delay.map (Str A) (Str (Str A))]ₛ (λ t : [Str A]. [Str.dup A]ₛ t)))
     ([idfun (Delay (Str A))]ₛ)
   gintro d

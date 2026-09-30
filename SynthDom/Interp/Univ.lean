@@ -20,8 +20,8 @@ section constructors
     UNIV.DISCRETE PUnit
   unseal UNIV in @[irreducible] def UNIV.SUM : SYNT ⦃UNIV × UNIV → UNIV⦄ :=
     box([U_sum]ₘ)
-  unseal UNIV in @[irreducible] def UNIV.LARR : SYNT ⦃▸ UNIV × ▸ UNIV → UNIV⦄ :=
-    box([U_larr]ₘ)
+  unseal UNIV in @[irreducible] def UNIV.ARR : SYNT ⦃UNIV × UNIV → UNIV⦄ :=
+    box([U_arr]ₘ)
   unseal UNIV UNIV.DISCRETE in
   lemma UNIV.DISCRETE.INTERP {A} : expr_interp Γ (UNIV.DISCRETE A).expr ⦃UNIV⦄ = Part.some (toUnit _ ≫ U_discrete A) := by
     rw [show (UNIV.DISCRETE A).expr = EXPR.ax ⦃UNIV⦄ (U_discrete A) from rfl]
@@ -41,10 +41,10 @@ section constructors
   lemma UNIV.SUM.INTERP : expr_interp Γ (UNIV.SUM).expr ⦃UNIV × UNIV → UNIV⦄ = Part.some (toUnit _ ≫ U_sum) := by
     rw [show UNIV.SUM.expr = EXPR.ax ⦃UNIV × UNIV → UNIV⦄ U_sum from rfl]
     exact ax_interp (A := ⦃UNIV × UNIV → UNIV⦄) Γ U_sum
-  unseal UNIV UNIV.LARR in
-  lemma UNIV.LARR.INTERP : expr_interp Γ (UNIV.LARR).expr ⦃▸ UNIV × ▸ UNIV → UNIV⦄ = Part.some (toUnit _ ≫ U_larr) := by
-    rw [show UNIV.LARR.expr = EXPR.ax ⦃▸ UNIV × ▸ UNIV → UNIV⦄ U_larr from rfl]
-    exact ax_interp (A := ⦃▸ UNIV × ▸ UNIV → UNIV⦄) Γ U_larr
+  unseal UNIV UNIV.ARR in
+  lemma UNIV.ARR.INTERP : expr_interp Γ (UNIV.ARR).expr ⦃UNIV × UNIV → UNIV⦄ = Part.some (toUnit _ ≫ U_arr) := by
+    rw [show UNIV.ARR.expr = EXPR.ax ⦃UNIV × UNIV → UNIV⦄ U_arr from rfl]
+    exact ax_interp (A := ⦃UNIV × UNIV → UNIV⦄) Γ U_arr
 
   def U_code (X : ℐ.{i}) : 𝟙_ ℐ.{i + 1} ⟶ U.{i} := classify.inv X
 
@@ -82,9 +82,9 @@ section lang
   lemma globalElt_UNIV_SUM : GlobalElt UNIV.SUM = U_sum :=
     globalElt_ax UNIV.SUM U_sum rfl
 
-  unseal UNIV UNIV.LARR in
-  lemma globalElt_UNIV_LARR : GlobalElt UNIV.LARR = U_larr :=
-    globalElt_ax UNIV.LARR U_larr rfl
+  unseal UNIV UNIV.ARR in
+  lemma globalElt_UNIV_ARR : GlobalElt UNIV.ARR = U_arr :=
+    globalElt_ax UNIV.ARR U_arr rfl
 
   unseal UNIV UNIV.UNIT UNIV.DISCRETE in
   lemma globalElt_UNIV_UNIT : GlobalElt UNIV.UNIT = U_discrete PUnit.{i+1} := by
@@ -159,17 +159,16 @@ section decodes
     unfold DECODES; rw [key, Category.assoc, U_later_push, h]
 
   unseal UNIV in
-  lemma DECODES_LARR {c₁ c₂ : SYNT ⦃UNIV⦄} {X₁ X₂ : ℐ.{i}}
+  lemma DECODES_ARR {c₁ c₂ : SYNT ⦃UNIV⦄} {X₁ X₂ : ℐ.{i}}
       (h₁ : DECODES c₁ X₁) (h₂ : DECODES c₂ X₂) :
-      DECODES (box([UNIV.LARR]ₛ ⟨delay [c₁]ₛ, delay [c₂]ₛ⟩)) (later.obj (ℐ.parr X₁ X₂)) := by
-    have key : Fam (box([UNIV.LARR]ₛ ⟨delay [c₁]ₛ, delay [c₂]ₛ⟩))
-        = CartesianMonoidalCategory.lift (Fam c₁ ≫ next.app U) (Fam c₂ ≫ next.app U)
-            ≫ MonoidalClosed.uncurry' U_larr := by
-      have h := globalElt_app_delayed_pair UNIV.LARR c₁ c₂
-      rw [globalElt_UNIV_LARR] at h
+      DECODES (box([UNIV.ARR]ₛ ⟨[c₁]ₛ, [c₂]ₛ⟩)) (ℐ.parr X₁ X₂) := by
+    have key : Fam (box([UNIV.ARR]ₛ ⟨[c₁]ₛ, [c₂]ₛ⟩))
+        = CartesianMonoidalCategory.lift (Fam c₁) (Fam c₂) ≫ MonoidalClosed.uncurry' U_arr := by
+      have h := globalElt_app_pair UNIV.ARR c₁ c₂
+      rw [globalElt_UNIV_ARR] at h
       simp only [Fam, GlobalElt] at h ⊢
       exact h
-    unfold DECODES; rw [key, U_larr_push, h₁, h₂]
+    unfold DECODES; rw [key, U_arr_push, h₁, h₂]
 
   lemma DECODES_refl (c : SYNT ⦃UNIV⦄) : DECODES c (classify.hom (Fam c)) := rfl
 
