@@ -24,6 +24,7 @@ syntax "glöb " ident : tactic
 syntax "gsimpl" : tactic
 syntax "gnext" : tactic
 syntax "gadv" : tactic
+syntax "gadv " colGt ident (" as " ident)? : tactic
 syntax "gunfold " ident " at " ident : tactic
 syntax "gunfold " ident : tactic
 syntax "gembed" : tactic

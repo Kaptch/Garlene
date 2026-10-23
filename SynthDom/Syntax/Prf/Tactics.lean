@@ -80,6 +80,8 @@ elab_rules : tactic
 | `(tactic| gsimpl) => do runGT simpl_core
 | `(tactic| gnext) => do runGT do peelDelayEq; next_core
 | `(tactic| gadv) => do runGT adv_core
+| `(tactic| gadv $h:ident $[as $g:ident]?) => do
+  runGT (adv_hyp_core h ((g.map (·.getId)).getD h.getId))
 | `(tactic| gunfold $h:ident at $t:ident) => do
   withGTiming (withMainContext (unfold_at_hyp_impl h t))
 | `(tactic| gunfold $h:ident) => do runGT (unfold_core h)

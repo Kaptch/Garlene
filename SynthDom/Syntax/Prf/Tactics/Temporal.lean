@@ -62,4 +62,41 @@ def adv_core : TacticM Unit := do
     goal.assign proof [shown]
   | _ => throwError "gadv: the goal is not of the form `adv n _`"
 
+def adv_hyp_core (h : Ident) (newName : Name) : TacticM Unit := do
+  let hn := h.getId
+  let ⟨u, goal⟩ ← matchGoal "gadv"
+  let { PΓ, PΨ, Γ, Ψ } := goal.context
+  let slot ← findSlot PΨ hn "gadv" "hypothesis"
+  let k := slot.frame
+  if k == 0 then
+    throwError m!"gadv: hypothesis {hn} lives in the current frame; it must come from an earlier \
+      one (open the tick with `gnext` first)"
+  have kQ : Q(Nat) := mkNatLit k
+  let PΓd : Q(ElabCtx) ← whnf q(List.drop $kQ $PΓ)
+  let PΨd : Q(ElabCtx) ← whnf q(List.drop $kQ $PΨ)
+  let Γd : Q(CTX.{u}) ← whnf q(List.drop $kQ $Γ)
+  let Ψd : Q(PCTX.{u}) ← whnf q(List.drop $kQ $Ψ)
+  let cd : GuardedContext u := { PΓ := PΓd, PΨ := PΨd, Γ := Γd, Ψ := Ψd }
+  let p ← cd.projectHyp "gadv" hn
+  have P : Q(EXPR.{u}) := p.normalized.prop
+  match P with
+  | ~q(EXPR.lift (EXPR.delay $φ)) =>
+    have proj : Q(GOAL (List.drop $kQ $PΓ) (List.drop $kQ $PΨ) (List.drop $kQ $Γ) (List.drop $kQ $Ψ)
+      (EXPR.lift (EXPR.delay $φ))) := p.normalized.proof
+    let Hk : Q(0 < $kQ) ← mkDecideProof q(0 < $kQ)
+    let advG : Q(GOAL $PΓ $PΨ $Γ $Ψ (EXPR.adv $kQ (EXPR.delay $φ))) :=
+      q(GOAL_later_elim $kQ $Hk $proj)
+    let M : Q($kQ < ($Γ).length) ← mkDecideProof q($kQ < ($Γ).length)
+    let Hφ ← mkTypedProp u q(([] : OCTX.{u}) :: $Γd) φ
+    have Hφ' : Q(TYPED (([] : OCTX.{u}) :: List.drop $kQ $Γ) $φ TYPE.prop) := Hφ
+    let rhs : Q(EXPR.{u}) :=
+      q(weaken $φ (wk_delay (($Γ)[0]'(Nat.lt_trans $Hk $M)).length ($kQ - 1)))
+    let eqβ : Q(EQ $Γ TYPE.prop (EXPR.adv $kQ (EXPR.delay $φ)) $rhs) :=
+      q(EQ.beta_delay (Γ := $Γ) (e := $φ) (τ := TYPE.prop) $kQ $Hk $M $Hφ')
+    let newG : Q(GOAL $PΓ $PΨ $Γ $Ψ $rhs) := q(GOAL_simplify_prop $eqβ $advG)
+    let ⟨rhsN, eqN⟩ ← canon u Γ rhs
+    let newGN : Q(GOAL $PΓ $PΨ $Γ $Ψ $rhsN) := q(GOAL_subst $newG (Eq.symm $eqN))
+    discard <| addDerived newName { prop := rhsN, proof := newGN }
+  | _ => throwError m!"gadv: hypothesis {hn} is not a ▷-proposition: {P}"
+
 end prf
