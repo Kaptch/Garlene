@@ -23,7 +23,7 @@ def lookup : (n : Nat) → Fin n → SYNT ⦃[Env n] → Dom⦄
     box(λ ρ : [Env (n + 1)]. [lookup n ⟨i, Nat.lt_of_succ_lt_succ h⟩]ₛ (π₁ ρ))
 
 def interp : (n : Nat) → Lam n → SYNT ⦃[Env n] → Dom⦄
-  | n, .unit => box(λ _ : [Env n]. [Dom.num 0]ₛ)
+  | n, .unit => box(λ _ : [Env n]. [Dom.unit]ₛ)
   | n, .var i => lookup n i
   | n, .app t u => box(λ ρ : [Env n]. ([Dom.apply]ₛ ([interp n t]ₛ ρ)) ([interp n u]ₛ ρ))
   | n, .lam t => box(λ ρ : [Env n]. [Dom.lam]ₛ (delay (λ v. [interp (n + 1) t]ₛ ⟨ρ, v⟩)))

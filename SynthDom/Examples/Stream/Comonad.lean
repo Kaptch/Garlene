@@ -26,10 +26,11 @@ gtheorem Str.map_dup (A B : TYPE) :
   gsimpl
   grewrite (Str.dup_cons A)
   grewrite (Str.map_cons (Str A) (Str B))
-  grewrite (Str.unfold_fold (Str A))
+  grewrite (Str.PROJ_MK (Str A))
   gsimpl
   gcong
-  gmono IH as G
+  gnext
+  gadv IH as G
   gapply G
 
 gtheorem Str.mapProg_ofHom_id (X : ℐ.{u}) :
@@ -210,37 +211,37 @@ section unfolding
 
 gtheorem Str.mk_proj' (A : TYPE) :
     ([SYNT.comp (Str A) (TYPE.prod A (TYPE.later (Str A))) (Str A)
-        (Str.unfold A) (Str.fold A)]ₛ = [idfun (Str A)]ₛ) := by
+        (Str.PROJ A) (Str.MK A)]ₛ = [idfun (Str A)]ₛ) := by
   gapply (gfunext _ _)
     [SYNT.comp (Str A) (TYPE.prod A (TYPE.later (Str A))) (Str A)
-      (Str.unfold A) (Str.fold A)]ₛ
+      (Str.PROJ A) (Str.MK A)]ₛ
     [idfun (Str A)]ₛ
   gintro x
   gunfold SYNT.comp
   gsimpl
   gunfold idfun
   gsimpl
-  gapply (Str.fold_unfold A)
+  gapply (Str.MK_PROJ A)
 
 gtheorem Str.proj_mk' (A : TYPE) :
     ([SYNT.comp (TYPE.prod A (TYPE.later (Str A))) (Str A)
-        (TYPE.prod A (TYPE.later (Str A))) (Str.fold A) (Str.unfold A)]ₛ
+        (TYPE.prod A (TYPE.later (Str A))) (Str.MK A) (Str.PROJ A)]ₛ
       = [idfun (TYPE.prod A (TYPE.later (Str A)))]ₛ) := by
   gapply (gfunext _ _)
     [SYNT.comp (TYPE.prod A (TYPE.later (Str A))) (Str A)
-      (TYPE.prod A (TYPE.later (Str A))) (Str.fold A) (Str.unfold A)]ₛ
+      (TYPE.prod A (TYPE.later (Str A))) (Str.MK A) (Str.PROJ A)]ₛ
     [idfun (TYPE.prod A (TYPE.later (Str A)))]ₛ
   gintro x
   gunfold SYNT.comp
   gsimpl
   gunfold idfun
   gsimpl
-  gapply (Str.unfold_fold A)
+  gapply (Str.PROJ_MK A)
 
 def STR.unfoldIso (X : ℐ.{u}) :
     STR.obj X ≅ X ⊗ later.obj (STR.obj X) where
-  hom := denoteHom (Str.unfold (TYPE.ax X))
-  inv := denoteHom (Str.fold (TYPE.ax X))
+  hom := denoteHom (Str.PROJ (TYPE.ax X))
+  inv := denoteHom (Str.MK (TYPE.ax X))
   hom_inv_id := by
     have h := denoteHom_of_goal (Str.mk_proj' (TYPE.ax X))
     rw [denoteHom_comp] at h

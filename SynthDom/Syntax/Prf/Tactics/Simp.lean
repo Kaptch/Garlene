@@ -49,6 +49,20 @@ theorem var_ghost (nm : Lean.Name) (n m : Nat) : EXPR.var nm n m = EXPR.var' n m
 @[expr_simp] theorem annot_expr (e : EXPR.{i}) (τ : TYPE.{i}) : EXPR.annot e τ = e := by
   with_unfolding_all rfl
 
+theorem annot_subst (σ : SSUBST.{i}) (e : EXPR.{i}) (τ : TYPE.{i}) :
+    binds σ (EXPR.annot e τ) = EXPR.annot (binds σ e) τ := by
+  with_unfolding_all rfl
+
+theorem weaken_annot (e : EXPR.{i}) (τ : TYPE.{i}) (ρ : REN) :
+    weaken (EXPR.annot e τ) ρ = EXPR.annot (weaken e ρ) τ := by
+  with_unfolding_all rfl
+
+attribute [motive_simp]
+  binds weaken
+  lam_subst forall_subst exists_subst fix_subst annot_subst
+  weaken_lam weaken_forall weaken_exists weaken_fix weaken_annot
+  binds_quote weaken_quote binds_synt_expr weaken_synt_expr
+
 def simpWith (u : Level) (tactic : TSyntax `tactic) (e : Q(EXPR.{u})) :
     TacticM (Σ' (result : Q(EXPR.{u})), Q($e = $result)) := do
   let context ← Lean.Elab.Tactic.mkSimpContext tactic false

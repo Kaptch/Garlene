@@ -173,7 +173,8 @@ theorem interp_fix_cong (n m : Nat) (t : Lam (n + 1)) (t' : Lam (m + 1))
     · gapply (Dom.thunk_delay_cong_tm_later)
         ([interp (n + 1) t]ₛ ⟨[E]ₛ ρ, [interp n (Lam.fix t)]ₛ ([E]ₛ ρ)⟩)
         ([interp (m + 1) t']ₛ ⟨ρ, [interp m (Lam.fix t')]ₛ ρ⟩)
-      gmono L as L'
+      gnext
+      gadv L as L'
       gapply (eq_trans' Dom)
         ([interp (n + 1) t]ₛ ⟨[E]ₛ ρ, [interp n (Lam.fix t)]ₛ ([E]ₛ ρ)⟩)
         ([interp (n + 1) t]ₛ ⟨[E]ₛ ρ, [interp m (Lam.fix t')]ₛ ρ⟩)

@@ -23,6 +23,20 @@ def typecheckReducing (u : Level) (Γ e τ : Expr) : TacticM Unit := do
     let er ← withTransparency .all (reduce e)
     discard <| typecheck u Γ er τ
 
+def motiveInstanceEq (u : Level) (lens : Q(List Nat))
+    (motive motiveRaw : Q(EXPR.{u})) (motiveEq : Q($motiveRaw = $motive))
+    (e target : Q(EXPR.{u})) :
+    TacticM Q(binds (single_subst $lens $e) $motive = $target) := do
+  let ⟨pushed, pushEq⟩ ← simpWith u (← `(tactic|
+    simp (config := { failIfUnchanged := false }) only [motive_simp]))
+    q(binds (single_subst $lens $e) $motiveRaw)
+  let ⟨_⟩ ← try liftM (m := MetaM) <| withTransparency .all <|
+      assertDefEqQ (α := q(EXPR.{u})) pushed target
+    catch _ =>
+      throwError m!"internal error: the rewrite motive instantiated at{indentExpr e}\n\
+        reduces to{indentExpr pushed}\ninstead of{indentExpr target}"
+  return q((congrArg (fun m => binds (single_subst $lens $e) m) ($motiveEq).symm).trans $pushEq)
+
 def substMotiveEq (direction : RwDir) (u : Level)
     (lens motive motiveRaw motiveEq e target : Expr) : TacticM Expr := do
   have lens' : Q(List Nat) := lens
@@ -31,29 +45,10 @@ def substMotiveEq (direction : RwDir) (u : Level)
   have motiveEq' : Q($motiveRaw' = $motive') := motiveEq
   have e' : Q(EXPR.{u}) := e
   have target' : Q(EXPR.{u}) := target
+  let eq ← motiveInstanceEq u lens' motive' motiveRaw' motiveEq' e' target'
   match direction with
-  | .ltr =>
-    let raw : Q(binds (single_subst $lens' $e') $motiveRaw' = $target') ←
-      withTransparency .all <| mkExpectedTypeHint
-        q(@Eq.refl EXPR.{u} (binds (single_subst $lens' $e') $motiveRaw'))
-        q(binds (single_subst $lens' $e') $motiveRaw' = $target')
-    let congruence : Q(binds (single_subst $lens' $e') $motive'
-        = binds (single_subst $lens' $e') $motiveRaw') ← mkExpectedTypeHint
-      q(@congrArg EXPR.{u} EXPR.{u} $motive' $motiveRaw'
-        (fun m => binds (single_subst $lens' $e') m) (Eq.symm $motiveEq'))
-      q(binds (single_subst $lens' $e') $motive' = binds (single_subst $lens' $e') $motiveRaw')
-    pure q(Eq.trans $congruence $raw)
-  | .rtl =>
-    let raw : Q($target' = binds (single_subst $lens' $e') $motiveRaw') ←
-      withTransparency .all <| mkExpectedTypeHint
-        q(@Eq.refl EXPR.{u} $target')
-        q($target' = binds (single_subst $lens' $e') $motiveRaw')
-    let congruence : Q(binds (single_subst $lens' $e') $motiveRaw'
-        = binds (single_subst $lens' $e') $motive') ← mkExpectedTypeHint
-      q(@congrArg EXPR.{u} EXPR.{u} $motiveRaw' $motive'
-        (fun m => binds (single_subst $lens' $e') m) $motiveEq')
-      q(binds (single_subst $lens' $e') $motiveRaw' = binds (single_subst $lens' $e') $motive')
-    pure q(Eq.trans $raw $congruence)
+  | .ltr => pure eq
+  | .rtl => pure q(Eq.symm $eq)
 
 structure GuardedEquation where
   ty : Expr

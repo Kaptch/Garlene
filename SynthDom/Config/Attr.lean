@@ -8,6 +8,8 @@ open Lean Meta
 
 register_simp_attr expr_simp
 
+register_simp_attr motive_simp
+
 syntax (name := guarded) "guarded " ident (str)? : attr
 
 initialize guardedAttrExt : SimpleScopedEnvExtension Name NameSet ←
